@@ -75,7 +75,12 @@
   .cloud-container canvas { display: block; width: 100%; }
   .cloud-tooltip { position: absolute; background: #001d54; color: #f0c040; font-size: 13px; font-family: "Oswald", sans-serif; font-weight: 500; letter-spacing: 0.04em; padding: 5px 12px; border-radius: 6px; pointer-events: none; display: none; white-space: nowrap; border: 1px solid rgba(200,16,46,0.6); box-shadow: 0 2px 12px rgba(0,0,0,0.5); text-transform: uppercase; }
   .swear-table thead th { background: #1a0505; }
-  .upload-section { margin-top: 28px; background: var(--white); border: 2px dashed var(--blue); border-radius: 10px; padding: 20px 24px; text-align: center; }
+  .role-god   { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; background:#fff3cd; color:#7a5000; border:1px solid #f0c040; margin-left:6px; vertical-align:middle; letter-spacing:0.04em; text-transform:uppercase; font-family:"Source Sans 3",sans-serif; }
+  .role-admin { display:inline-block; font-size:10px; font-weight:700; padding:1px 7px; border-radius:20px; background:#e8eef8; color:#003087; border:1px solid rgba(0,48,135,0.3); margin-left:6px; vertical-align:middle; letter-spacing:0.04em; text-transform:uppercase; font-family:"Source Sans 3",sans-serif; }
+  .filter-label { font-size: 12px; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-right: 4px; }
+  .filter-btn { padding: 5px 14px; font-size: 12px; font-weight: 600; font-family: "Oswald", sans-serif; letter-spacing: 0.04em; text-transform: uppercase; border: 1px solid var(--border); border-radius: 20px; background: var(--white); color: var(--text-muted); cursor: pointer; transition: all 0.15s; }
+  .filter-btn:hover { border-color: var(--blue); color: var(--blue); }
+  .filter-btn.active { background: var(--blue); color: var(--white); border-color: var(--blue); }
   .upload-section p { font-size: 13px; color: var(--text-muted); margin-bottom: 10px; }
   .upload-section strong { color: var(--blue-dark); }
   .instructions { text-align: left; font-size: 12px; color: var(--text-muted); margin-top: 10px; line-height: 1.8; }
@@ -101,6 +106,7 @@
     <button class="nav-tab" onclick="showSection('lowTab', this)">Watch List</button>
     <button class="nav-tab" onclick="showSection('topTab', this)">Top contributors</button>
     <button class="nav-tab" onclick="showSection('allTab', this)">All members</button>
+    <button class="nav-tab" onclick="showSection('removedTab', this)">&#128682; Removed</button>
     <button class="nav-tab rude" onclick="showSection('profanityTab', this)">&#128163; Profanity cloud</button>
   </div>
 </div>
@@ -112,6 +118,7 @@
     <div id="lowTab" class="section"></div>
     <div id="topTab" class="section"></div>
     <div id="allTab" class="section"></div>
+    <div id="removedTab" class="section"></div>
     <div id="profanityTab" class="section"></div>
     <div class="upload-section">
       <p><strong>Update the tracker</strong> &mdash; export a fresh chat history from Telegram Desktop and upload into Claude</p>
@@ -127,71 +134,72 @@
 (function () {
   var snapshots = [
     { label: "Snapshot 1", date: "Apr 2026 — Days 1–3", totalMessages: 629 },
-    { label: "Snapshot 2", date: "Apr 2026 — Latest", totalMessages: 648 }
+    { label: "Snapshot 2", date: "Apr 2026 — Days 1–2", totalMessages: 648 },
+    { label: "Snapshot 3", date: "Apr 2026 — Days 1–3", totalMessages: 638 }
   ];
   var members = [
-    {name: "Alex Hare",              snap1: 10,  snap2: 10,  swears: 0,  lastMsgDate: "2026-04-01T21:28:38", joinDate: "2026-03-31T21:57:18"},
-    {name: "Alistair Rattray",       snap1: 0,   snap2: 1,   swears: 0,  lastMsgDate: "2026-04-02T20:38:21", joinDate: "2026-04-01T20:03:04"},
-    {name: "Ashley Elden",           snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:33:07"},
-    {name: "Brian Emsden",           snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T22:31:34"},
-    {name: "Carl",                   snap1: 13,  snap2: 13,  swears: 0,  lastMsgDate: "2026-04-02T09:09:23", joinDate: "2026-04-01T12:34:56"},
-    {name: "Chris Kerry",            snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T14:03:39"},
-    {name: "Craig F",                snap1: 54,  snap2: 54,  swears: 4,  lastMsgDate: "2026-04-02T18:02:34", joinDate: "2026-03-31T19:23:08"},
-    {name: "Dave Bawden",            snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:17:29"},
-    {name: "Dave H",                 snap1: 2,   snap2: 2,   swears: 0,  lastMsgDate: "2026-04-01T18:48:00", joinDate: "2026-03-31T22:43:49"},
-    {name: "Foyster",                snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:32:13"},
-    {name: "George Solomon",         snap1: 4,   snap2: 4,   swears: 0,  lastMsgDate: "2026-04-02T11:31:50", joinDate: "2026-03-31T19:30:06"},
-    {name: "Harrison Smith",         snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:02:17"},
-    {name: "Iain Mackie",            snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T21:44:39"},
-    {name: "Jack Paul Saunders",     snap1: 1,   snap2: 4,   swears: 0,  lastMsgDate: "2026-04-02T21:04:37", joinDate: "2026-03-31T19:29:32"},
-    {name: "James",                  snap1: 22,  snap2: 22,  swears: 0,  lastMsgDate: "2026-04-02T16:32:55", joinDate: "2026-03-31T19:36:26"},
-    {name: "James Reeve",            snap1: 4,   snap2: 4,   swears: 0,  lastMsgDate: "2026-04-02T13:42:48", joinDate: "2026-03-31T19:41:49"},
-    {name: "James Williment",        snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:18:34"},
-    {name: "Jamie",                  snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:36:47"},
-    {name: "Jason Milton",           snap1: 143, snap2: 149, swears: 7,  lastMsgDate: "2026-04-02T21:13:03", joinDate: "2026-03-31T19:23:08"},
-    {name: "Jen Pellegrotti",        snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T18:46:09"},
-    {name: "Jim Elmy",               snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:23:08"},
-    {name: "Joe Fairs (Ipswich Town)",snap1: 6,  snap2: 6,   swears: 0,  lastMsgDate: "2026-04-02T17:37:07", joinDate: "2026-03-31T19:55:42"},
-    {name: "Joe Pickover",           snap1: 7,   snap2: 7,   swears: 2,  lastMsgDate: "2026-04-02T16:27:20", joinDate: "2026-04-02T12:18:00"},
-    {name: "Jon Watson",             snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:23:08"},
-    {name: "Jonathan",               snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T05:47:15"},
-    {name: "Jonathan Smith",         snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T12:32:14"},
-    {name: "Kev Ellis",              snap1: 131, snap2: 134, swears: 13, lastMsgDate: "2026-04-02T21:06:09", joinDate: "2026-03-31T19:23:08"},
-    {name: "Kev Wright",             snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T19:07:37"},
-    {name: "Krissy Day",             snap1: 32,  snap2: 32,  swears: 4,  lastMsgDate: "2026-04-02T16:56:16", joinDate: "2026-03-31T19:23:08"},
-    {name: "Lance B",                snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:28:42"},
-    {name: "MKS",                    snap1: 1,   snap2: 1,   swears: 0,  lastMsgDate: "2026-04-01T18:26:09", joinDate: "2026-03-31T20:45:47"},
-    {name: "Martin Talbot",          snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T15:25:05"},
-    {name: "Matt Townsend",          snap1: 23,  snap2: 23,  swears: 2,  lastMsgDate: "2026-04-02T16:23:53", joinDate: "2026-03-31T19:23:08"},
-    {name: "Mauricio",               snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T00:17:12"},
-    {name: "Mike (Ipswich \uD83D\uDC34)",snap1: 24, snap2: 24, swears: 1, lastMsgDate: "2026-04-02T16:25:07", joinDate: "2026-04-01T11:43:58"},
-    {name: "Mikey Pentti Smith",     snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T10:02:15"},
-    {name: "Nick Aimes",             snap1: 0,   snap2: 1,   swears: 0,  lastMsgDate: "2026-04-02T21:09:51", joinDate: "2026-04-02T21:07:12"},
-    {name: "Oscar (Ipswich)",        snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T14:53:41"},
-    {name: "Paul Barton",            snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:13:18"},
-    {name: "Paul Wash",              snap1: 10,  snap2: 10,  swears: 1,  lastMsgDate: "2026-04-02T09:53:42", joinDate: "2026-04-01T21:03:54"},
-    {name: "Paul Wellstead",         snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:59:26"},
-    {name: "Phil",                   snap1: 9,   snap2: 10,  swears: 1,  lastMsgDate: "2026-04-02T21:11:06", joinDate: "2026-03-31T21:25:37"},
-    {name: "Robin B",                snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T13:04:59"},
-    {name: "Russell Carroll",        snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T19:47:25"},
-    {name: "Sarah B",                snap1: 7,   snap2: 7,   swears: 0,  lastMsgDate: "2026-04-01T19:19:51", joinDate: "2026-04-01T17:20:32"},
-    {name: "Shane Davey",            snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T14:04:09"},
-    {name: "Skip Intro",             snap1: 30,  snap2: 30,  swears: 2,  lastMsgDate: "2026-04-02T12:31:24", joinDate: "2026-03-31T19:23:08"},
-    {name: "SyTFC",                  snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T22:36:09"},
-    {name: "The Greg N\u00FA\u00F1n",snap1: 16,  snap2: 18,  swears: 1,  lastMsgDate: "2026-04-02T21:11:30", joinDate: "2026-03-31T20:00:36"},
-    {name: "Tim Welch",              snap1: 4,   snap2: 4,   swears: 0,  lastMsgDate: "2026-04-02T12:38:04", joinDate: "2026-03-31T20:12:10"},
-    {name: "Tom I",                  snap1: 3,   snap2: 3,   swears: 0,  lastMsgDate: "2026-04-01T19:36:58", joinDate: "2026-04-01T15:51:08"},
-    {name: "Tom Page",               snap1: 5,   snap2: 5,   swears: 0,  lastMsgDate: "2026-04-02T14:32:22", joinDate: "2026-03-31T19:34:39"},
-    {name: "Veronica Dodd",          snap1: 11,  snap2: 11,  swears: 0,  lastMsgDate: "2026-04-02T14:29:42", joinDate: "2026-03-31T20:20:09"},
-    {name: "Zak Cunnell",            snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T08:51:17"},
-    {name: "glee",                   snap1: 0,   snap2: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:31:11"},
+    {name: "Alex Hare",              snap1: 10,  snap2: 10, snap3: 11,  m30: 11,  m7: 11,  swears: 0,  lastMsgDate: "2026-04-02T23:32:41", joinDate: "2026-03-31T21:57:18"},
+    {name: "Alistair Rattray",       snap1: 0,   snap2: 1, snap3: 1,   m30: 1,   m7: 1,   swears: 0,  lastMsgDate: "2026-04-02T20:38:21", joinDate: "2026-04-01T20:03:04"},
+    {name: "Ashley Elden",           snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:33:07"},
+    {name: "Brian Emsden",           snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T22:31:34"},
+    {name: "Carl",                   snap1: 13,  snap2: 13, snap3: 13,  m30: 13,  m7: 13,  swears: 0,  lastMsgDate: "2026-04-02T09:09:23", joinDate: "2026-04-01T12:34:56"},
+    {name: "Chris Kerry",            snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T14:03:39"},
+    {name: "Craig F",                snap1: 54,  snap2: 54, snap3: 59,  m30: 59,  m7: 59,  swears: 4,  lastMsgDate: "2026-04-03T09:24:53", joinDate: "2026-03-31T19:23:08"},
+    {name: "Dave Bawden",            snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:17:29"},
+    {name: "Dave H",                 snap1: 2,   snap2: 2, snap3: 2,   m30: 2,   m7: 2,   swears: 0,  lastMsgDate: "2026-04-01T18:48:00", joinDate: "2026-03-31T22:43:49"},
+    {name: "Foyster",                snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:32:13"},
+    {name: "George Solomon",         snap1: 4,   snap2: 4, snap3: 4,   m30: 4,   m7: 4,   swears: 0,  lastMsgDate: "2026-04-02T11:31:50", joinDate: "2026-03-31T19:30:06"},
+    {name: "Harrison Smith",         snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:02:17"},
+    {name: "Iain Mackie",            snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T21:44:39"},
+    {name: "Jack Paul Saunders",     snap1: 1,   snap2: 4, snap3: 5,   m30: 5,   m7: 5,   swears: 0,  lastMsgDate: "2026-04-03T10:30:02", joinDate: "2026-03-31T19:29:32"},
+    {name: "James",                  snap1: 22,  snap2: 22, snap3: 23,  m30: 23,  m7: 23,  swears: 0,  lastMsgDate: "2026-04-03T09:40:49", joinDate: "2026-03-31T19:36:26"},
+    {name: "James Reeve",            snap1: 4,   snap2: 4, snap3: 4,   m30: 4,   m7: 4,   swears: 0,  lastMsgDate: "2026-04-02T13:42:48", joinDate: "2026-03-31T19:41:49"},
+    {name: "James Williment",        snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:18:34"},
+    {name: "Jamie",                  snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:36:47"},
+    {name: "Jason Milton",           snap1: 143, snap2: 149, snap3: 166, m30: 166, m7: 166, swears: 7,  lastMsgDate: "2026-04-03T11:12:34", joinDate: "2026-03-31T19:23:08", role: "god"},
+    {name: "Jen Pellegrotti",        snap1: 0,   snap2: 0, snap3: 2,   m30: 2,   m7: 2,   swears: 0,  lastMsgDate: "2026-04-03T10:16:48",                  joinDate: "2026-04-02T18:46:09"},
+    {name: "Jim Elmy",               snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:23:08"},
+    {name: "Joe Fairs (Ipswich Town)",snap1: 6,  snap2: 6, snap3: 7,   m30: 7,   m7: 7,   swears: 0,  lastMsgDate: "2026-04-03T10:34:39", joinDate: "2026-03-31T19:55:42"},
+    {name: "Joe Pickover",           snap1: 7,   snap2: 7, snap3: 8,   m30: 8,   m7: 8,   swears: 2,  lastMsgDate: "2026-04-03T10:34:33", joinDate: "2026-04-02T12:18:00"},
+    {name: "Jon Watson",             snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:23:08"},
+    {name: "Jonathan",               snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T05:47:15"},
+    {name: "Jonathan Smith",         snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T12:32:14"},
+    {name: "Kev Ellis",              snap1: 131, snap2: 134, snap3: 136, m30: 136, m7: 136, swears: 13, lastMsgDate: "2026-04-03T11:10:37", joinDate: "2026-03-31T19:23:08", role: "admin"},
+    {name: "Kev Wright",             snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T19:07:37"},
+    {name: "Krissy Day",             snap1: 32,  snap2: 32, snap3: 34,  m30: 34,  m7: 34,  swears: 4,  lastMsgDate: "2026-04-03T08:58:06", joinDate: "2026-03-31T19:23:08"},
+    {name: "Lance B",                snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:28:42"},
+    {name: "MKS",                    snap1: 1,   snap2: 1, snap3: 2,   m30: 2,   m7: 2,   swears: 0,  lastMsgDate: "2026-04-03T10:27:51", joinDate: "2026-03-31T20:45:47"},
+    {name: "Martin Talbot",          snap1: 0,   snap2: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T15:25:05"},
+    {name: "Matt Townsend",          snap1: 23,  snap2: 23, snap3: 26,  m30: 26,  m7: 26,  swears: 2,  lastMsgDate: "2026-04-03T10:56:55", joinDate: "2026-03-31T19:23:08"},
+    {name: "Mauricio",               snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T00:17:12"},
+    {name: "Mike (Ipswich \uD83D\uDC34)",snap1: 24, snap2: 24, m30: 24, m7: 24, swears: 1,  lastMsgDate: "2026-04-02T16:25:07", joinDate: "2026-04-01T11:43:58"},
+    {name: "Mikey Pentti Smith",     snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T10:02:15"},
+    {name: "Nick Aimes",             snap1: 0,   snap2: 1, snap3: 1,   m30: 1,   m7: 1,   swears: 0,  lastMsgDate: "2026-04-02T21:09:51", joinDate: "2026-04-02T21:07:12"},
+    {name: "Oscar (Ipswich)",        snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T14:53:41"},
+    {name: "Paul Barton",            snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:13:18"},
+    {name: "Paul Wash",              snap1: 10,  snap2: 10, snap3: 11,  m30: 11,  m7: 11,  swears: 1,  lastMsgDate: "2026-04-03T07:55:52", joinDate: "2026-04-01T21:03:54"},
+    {name: "Paul Wellstead",         snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T19:59:26"},
+    {name: "Phil",                   snap1: 9,   snap2: 10, snap3: 12,  m30: 12,  m7: 12,  swears: 1,  lastMsgDate: "2026-04-03T10:12:50", joinDate: "2026-03-31T21:25:37"},
+    {name: "Robin B",                snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T13:04:59"},
+    {name: "Russell Carroll",        snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T19:47:25"},
+    {name: "Sarah B",                snap1: 7,   snap2: 7, snap3: 7,   m30: 7,   m7: 7,   swears: 0,  lastMsgDate: "2026-04-01T19:19:51", joinDate: "2026-04-01T17:20:32"},
+    {name: "Shane Davey",            snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-01T14:04:09"},
+    {name: "Skip Intro",             snap1: 30,  snap2: 30, snap3: 32,  m30: 32,  m7: 32,  swears: 2,  lastMsgDate: "2026-04-02T23:35:34", joinDate: "2026-03-31T19:23:08", role: "admin"},
+    {name: "SyTFC",                  snap1: 0,   snap2: 0, snap3: 1,   m30: 1,   m7: 1,   swears: 0,  lastMsgDate: "2026-04-03T09:54:50",                  joinDate: "2026-03-31T22:36:09"},
+    {name: "The Greg N\u00FA\u00F1n",snap1: 16,  snap2: 18,  snap3: 20, m30: 20,  m7: 20,  swears: 1,  lastMsgDate: "2026-04-03T09:31:10", joinDate: "2026-03-31T20:00:36"},
+    {name: "Tim Welch",              snap1: 4,   snap2: 4, snap3: 6,   m30: 6,   m7: 6,   swears: 0,  lastMsgDate: "2026-04-03T10:52:07", joinDate: "2026-03-31T20:12:10"},
+    {name: "Tom I",                  snap1: 3,   snap2: 3, snap3: 3,   m30: 3,   m7: 3,   swears: 0,  lastMsgDate: "2026-04-01T19:36:58", joinDate: "2026-04-01T15:51:08"},
+    {name: "Tom Page",               snap1: 5,   snap2: 5, snap3: 6,   m30: 6,   m7: 6,   swears: 0,  lastMsgDate: "2026-04-03T11:01:55", joinDate: "2026-03-31T19:34:39"},
+    {name: "Veronica Dodd",          snap1: 11,  snap2: 11, snap3: 12,  m30: 12,  m7: 12,  swears: 0,  lastMsgDate: "2026-04-03T10:05:25", joinDate: "2026-03-31T20:20:09"},
+    {name: "Zak Cunnell",            snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-04-02T08:51:17"},
+    {name: "glee",                   snap1: 0,   snap2: 0, snap3: 0,   m30: 0,   m7: 0,   swears: 0,  lastMsgDate: null,                  joinDate: "2026-03-31T20:31:11"},
   ];
   var swearWords = [
-    {word: "fuck", count: 8, topUser: "Craig F"},
+    {word: "fuck", count: 9, topUser: "Craig F"},
     {word: "shit", count: 8, topUser: "Kev Ellis"},
-    {word: "fucking", count: 5, topUser: "Kev Ellis"},
+    {word: "fucking", count: 7, topUser: "Kev Ellis"},
+    {word: "bollocks", count: 4, topUser: "Kev Ellis"},
     {word: "cunts", count: 3, topUser: "Matt Townsend"},
-    {word: "bollocks", count: 3, topUser: "Kev Ellis"},
     {word: "bugger", count: 2, topUser: "Jason Milton"},
     {word: "bloody", count: 1, topUser: "Jason Milton"},
     {word: "piss", count: 1, topUser: "Kev Ellis"},
@@ -202,10 +210,22 @@
     {word: "fucked", count: 1, topUser: "Craig F"},
     {word: "dick", count: 1, topUser: "Krissy Day"},
     {word: "prick", count: 1, topUser: "Kev Ellis"},
+    {word: "bellend", count: 1, topUser: "Craig F"},
   ];
-  var totalMessages = 648;
-  var currentSnap = "snap2";
-  var prevSnap = "snap1";
+  var totalMessages = 638;
+  var currentSnap = "snap3";
+  var prevSnap = "snap2";
+
+  var removedMembers = [
+    {
+      name: "Martin Talbot",
+      joinDate: "2026-04-01T15:25:05",
+      removedDate: "2026-04-03",
+      removedBy: "Admin",
+      reason: "Booted",
+      msgCount: 0
+    }
+  ];
 
   var sorted = members.slice().sort(function(a,b){ return b[currentSnap] - a[currentSnap]; });
   var maxMsgs = sorted[0][currentSnap];
@@ -217,7 +237,7 @@
   var totalSwears = swearWords.reduce(function(s,w){ return s + w.count; }, 0);
 
   document.getElementById("statsGrid").innerHTML =
-    sc("Total Members", sorted.length, "") +
+    sc("Total Members", sorted.length - removedMembers.length, "") +
     sc("Active Senders", activeList.length, "success") +
     sc("Silent (0 msgs)", silentList.length, "danger") +
     sc("Low (1–3 msgs)", lowList.length, "warning");
@@ -228,18 +248,178 @@
     " &nbsp;&middot;&nbsp; <strong>" + latest.totalMessages + "</strong> total messages</span>" +
     "<span class='snap-count'>" + snapshots.length + " snapshots on record</span>";
 
+  // Active window state per tab
+  var windows = {topTab: "all", allTab: "all", lowTab: "all"};
+
+  function getMsgs(m, win) {
+    if (win === "m7")  return m.m7;
+    if (win === "m30") return m.m30;
+    return m[currentSnap];
+  }
+
+  function nameTag(m) {
+    if (m.role === "god")   return m.name + " <span class='role-god'>\u2605 God</span>";
+    if (m.role === "admin") return m.name + " <span class='role-admin'>Admin</span>";
+    return m.name;
+  }
+
+  function filterBar(tabId) {
+    return "<div class='filter-bar'>" +
+      "<span class='filter-label'>Period:</span>" +
+      "<button class='filter-btn active' onclick=\"setWindow('" + tabId + "','all',this)\">All time</button>" +
+      "<button class='filter-btn' onclick=\"setWindow('" + tabId + "','m30',this)\">Last 30 days</button>" +
+      "<button class='filter-btn' onclick=\"setWindow('" + tabId + "','m7',this)\">Last 7 days</button>" +
+      "</div>";
+  }
+
+  function renderTopTab() {
+    var win = windows.topTab;
+    var list = members.slice()
+      .filter(function(m){ return getMsgs(m, win) >= 10; })
+      .sort(function(a,b){ return getMsgs(b,win) - getMsgs(a,win); });
+    var maxM = list.length ? getMsgs(list[0], win) : 1;
+    var totalM = members.reduce(function(s,m){ return s + getMsgs(m,win); }, 0);
+    var rows = list.map(function(m, i) {
+      var c = getMsgs(m, win);
+      var pct = maxM > 0 ? Math.round((c / maxM) * 100) : 0;
+      var pctTotal = totalM > 0 ? (c / totalM * 100).toFixed(1) + "%" : "0%";
+      return "<tr><td class='rank-cell'>" + (i+1) + "</td>" +
+        "<td style='font-weight:500;width:36%'>" + nameTag(m) + "</td>" +
+        "<td class='num' style='width:56px'>" + c + "</td>" +
+        "<td class='num' style='width:66px'>" + pctTotal + "</td>" +
+        "<td><div class='bar-bg'><div class='bar-fill' style='width:" + pct + "%'></div></div></td>" +
+        "<td style='width:80px'>" + getBadge(m) + "</td>" +
+        "<td style='font-size:12px;width:56px'>" + getTrend(m) + "</td></tr>";
+    }).join("");
+    var table = list.length
+      ? "<div class='table-wrap'><table><thead><tr>" +
+        "<th style='width:36px'>#</th><th style='width:36%'>Member</th>" +
+        "<th class='num' style='width:56px'>Msgs</th><th class='num' style='width:66px'>% total</th>" +
+        "<th>Volume</th><th style='width:80px'>Status</th><th style='width:56px'>Change</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table></div>"
+      : "<p style='font-size:14px;color:var(--text-muted);padding:1rem 0'>No top contributors for this period.</p>";
+    document.getElementById("topTab").innerHTML =
+      "<div class='section-title'>Top contributors <span class='pill'>" + list.length + " members</span></div>" +
+      filterBar("topTab") + table;
+  }
+
+  function renderAllTab() {
+    var win = windows.allTab;
+    var list = members.slice().sort(function(a,b){ return getMsgs(b,win) - getMsgs(a,win); });
+    var maxM = getMsgs(list[0], win) || 1;
+    var totalM = list.reduce(function(s,m){ return s + getMsgs(m,win); }, 0);
+    var rows = list.map(function(m, i) {
+      var c = getMsgs(m, win);
+      var pct = maxM > 0 ? Math.round((c / maxM) * 100) : 0;
+      var pctTotal = totalM > 0 ? (c / totalM * 100).toFixed(1) + "%" : "0%";
+      return "<tr><td class='rank-cell'>" + (i+1) + "</td>" +
+        "<td style='font-weight:500;width:36%'>" + nameTag(m) + "</td>" +
+        "<td class='num' style='width:56px'>" + c + "</td>" +
+        "<td class='num' style='width:66px'>" + pctTotal + "</td>" +
+        "<td><div class='bar-bg'><div class='bar-fill' style='width:" + pct + "%'></div></div></td>" +
+        "<td style='width:80px'>" + getBadge(m) + "</td>" +
+        "<td style='font-size:12px;width:56px'>" + getTrend(m) + "</td></tr>";
+    }).join("");
+    document.getElementById("allTab").innerHTML =
+      "<div class='section-title'>All members <span class='pill'>" + list.length + " total</span></div>" +
+      filterBar("allTab") +
+      "<div class='table-wrap'><table><thead><tr>" +
+      "<th style='width:36px'>#</th><th style='width:36%'>Member</th>" +
+      "<th class='num' style='width:56px'>Msgs</th><th class='num' style='width:66px'>% total</th>" +
+      "<th>Volume</th><th style='width:80px'>Status</th><th style='width:56px'>Change</th>" +
+      "</tr></thead><tbody>" + rows + "</tbody></table></div>";
+  }
+
+  function renderWatchTab() {
+    var win = windows.lowTab;
+    var list = members.slice()
+      .filter(function(m){ return getMsgs(m, win) >= 1 && getMsgs(m, win) <= 3; })
+      .sort(function(a,b){ return getMsgs(b,win) - getMsgs(a,win); });
+    var maxM = members.reduce(function(s,m){ return Math.max(s, getMsgs(m,win)); }, 1);
+    var rows = list.map(function(m, i) {
+      var c = getMsgs(m, win);
+      var days = daysSilent(m);
+      var barPct = Math.round((c / maxM) * 100);
+      return "<tr><td class='rank-cell'>" + (i+1) + "</td>" +
+        "<td style='font-weight:500;width:36%'>" + nameTag(m) + "</td>" +
+        "<td class='num' style='width:56px'>" + c + "</td>" +
+        "<td class='num' style='width:70px'>" + daysBadge(days) + "</td>" +
+        "<td><div class='bar-bg'><div class='bar-fill gold' style='width:" + barPct + "%'></div></div></td>" +
+        "<td style='width:80px'>" + getBadge(m) + "</td>" +
+        "<td style='font-size:12px;width:56px'>" + getTrend(m) + "</td></tr>";
+    }).join("");
+    var table = list.length
+      ? "<div class='table-wrap'><table><thead><tr>" +
+        "<th style='width:36px'>#</th><th style='width:36%'>Member</th>" +
+        "<th class='num' style='width:56px'>Msgs</th><th class='num' style='width:70px'>Days silent</th>" +
+        "<th>Activity</th><th style='width:80px'>Status</th><th style='width:56px'>Change</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table></div>"
+      : "<p style='font-size:14px;color:var(--text-muted);padding:1rem 0'>No watch list members for this period.</p>";
+    document.getElementById("lowTab").innerHTML =
+      "<div class='section-title'>Watch List <span class='pill'>" + list.length + " members</span></div>" +
+      filterBar("lowTab") + table;
+  }
+
+  window.setWindow = function(tabId, win, el) {
+    windows[tabId] = win;
+    el.parentElement.querySelectorAll(".filter-btn").forEach(function(b){ b.classList.remove("active"); });
+    el.classList.add("active");
+    if (tabId === "topTab") renderTopTab();
+    if (tabId === "allTab") renderAllTab();
+    if (tabId === "lowTab") renderWatchTab();
+  };
+
+  renderTopTab();
+  renderAllTab();
+  renderWatchTab();
+
   document.getElementById("silentTab").innerHTML =
     "<div class='section-title'>Cunt List <span class='pill'>" + silentList.length + " members</span></div>" +
-    buildSilentTable(silentList, "No silent members — great engagement!");
-  document.getElementById("lowTab").innerHTML =
-    "<div class='section-title'>Watch List <span class='pill'>" + lowList.length + " members</span></div>" +
-    buildWatchTable(lowList, "No low engagement members.");
-  document.getElementById("topTab").innerHTML =
-    "<div class='section-title'>Top contributors <span class='pill'>" + topList.length + " members</span></div>" +
-    buildTable(topList, true, "No top contributors yet.", "", true);
-  document.getElementById("allTab").innerHTML =
-    "<div class='section-title'>All members <span class='pill'>" + sorted.length + " total</span></div>" +
-    buildTable(sorted, true, "No data.", "", true);
+    buildSilentTable(silentList, "No silent members \u2014 great engagement!");
+
+
+
+  // REMOVED MEMBERS
+
+  (function buildRemovedTab() {
+    var el = document.getElementById("removedTab");
+    if (!el) return;
+    var rows = removedMembers.map(function(m, i) {
+      var joinLabel  = new Date(m.joinDate).toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"});
+      var removeLabel = new Date(m.removedDate).toLocaleDateString("en-GB", {day:"numeric", month:"short", year:"numeric"});
+      var joined = new Date(m.joinDate);
+      var removed = new Date(m.removedDate);
+      var daysInGroup = Math.max(0, Math.floor((removed - joined) / (1000*60*60*24)));
+      var reasonColour = m.reason === "Booted" ? "var(--red)" : m.reason === "Left" ? "var(--text-muted)" : "#b36000";
+      var reasonIcon   = m.reason === "Booted" ? "&#128094;" : m.reason === "Left" ? "&#128073;" : "&#10067;";
+      return "<tr>" +
+        "<td class='rank-cell'>" + (i+1) + "</td>" +
+        "<td style='font-weight:500;width:22%'>" + m.name + "</td>" +
+        "<td style='font-size:13px;width:90px'>" + joinLabel + "</td>" +
+        "<td style='font-size:13px;width:100px;color:var(--red);font-weight:600'>" + removeLabel + "</td>" +
+        "<td class='num' style='width:50px'>" + m.msgCount + "</td>" +
+        "<td style='width:80px;font-size:12px;color:var(--text-muted)'>" + daysInGroup + "d</td>" +
+        "<td style='width:90px;font-weight:600;font-size:13px;color:" + reasonColour + "'>" + reasonIcon + " " + m.reason + "</td>" +
+        "</tr>";
+    }).join("");
+    var table = removedMembers.length
+      ? "<div class='table-wrap'><table><thead><tr>" +
+        "<th style='width:36px'>#</th>" +
+        "<th style='width:22%'>Member</th>" +
+        "<th style='width:90px'>Joined</th>" +
+        "<th style='width:100px'>Removed</th>" +
+        "<th class='num' style='width:50px'>Msgs</th>" +
+        "<th style='width:80px'>Time in group</th>" +
+        "<th style='width:90px'>Reason</th>" +
+        "</tr></thead><tbody>" + rows + "</tbody></table></div>"
+      : "<p style='font-size:14px;color:var(--text-muted);padding:1rem 0'>No removed members yet.</p>";
+    el.innerHTML =
+      "<div class='section-title' style='border-bottom-color:var(--red);color:#8b0000'>" +
+        "&#128682; Removed members <span class='pill'>" + removedMembers.length + " total</span>" +
+      "</div>" +
+      "<p style='font-size:13px;color:var(--text-muted);margin-bottom:16px'>Members who have been removed or left the group.</p>" +
+      table;
+  })();
 
   // PROFANITY CLOUD — canvas renderer
   var maxSwear = swearWords[0].count;
@@ -480,7 +660,7 @@
       var joinLabel = new Date(m.joinDate).toLocaleDateString("en-GB", {day:"numeric", month:"short"});
       return "<tr>" +
         "<td class='rank-cell'>" + (i+1) + "</td>" +
-        "<td style='font-weight:500'>" + m.name + "</td>" +
+        "<td style='font-weight:500'>" + nameTag(m) + "</td>" +
         "<td style='font-size:12px;color:var(--text-muted)'>" + joinLabel + "</td>" +
         "<td class='num'>" + daysBadge(days) + "</td>" +
         "<td><div class='bar-bg'><div class='bar-fill red' style='width:" + barPct + "%'></div></div></td>" +
@@ -506,7 +686,7 @@
       var barPct = maxMsgs > 0 ? Math.round((m[currentSnap] / maxMsgs) * 100) : 0;
       return "<tr>" +
         "<td class='rank-cell'>" + (i+1) + "</td>" +
-        "<td style='font-weight:500'>" + m.name + "</td>" +
+        "<td style='font-weight:500'>" + nameTag(m) + "</td>" +
         "<td class='num'>" + m[currentSnap] + "</td>" +
         "<td class='num'>" + daysBadge(days) + "</td>" +
         "<td><div class='bar-bg'><div class='bar-fill gold' style='width:" + barPct + "%'></div></div></td>" +
@@ -530,7 +710,7 @@
       var pctTotal = (m[currentSnap] / totalMessages * 100).toFixed(1) + "%";
       return "<tr>" +
         "<td class='rank-cell'>" + (showRank ? i+1 : "—") + "</td>" +
-        "<td style='font-weight:500'>" + m.name + "</td>" +
+        "<td style='font-weight:500'>" + nameTag(m) + "</td>" +
         "<td class='num'>" + m[currentSnap] + "</td>" +
         "<td><div class='bar-bg'><div class='bar-fill " + barClass + "' style='width:" + barPct + "%'></div></div></td>" +
         (showPct ? "<td class='pct-cell'>" + pctTotal + "</td>" : "") +
