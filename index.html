@@ -356,9 +356,11 @@
   }
 
   function nameTag(m) {
-    if (m.role === "god")   return m.name + " <span class='role-god'>\u2605 God</span>";
-    if (m.role === "admin") return m.name + " <span class='role-admin'>Admin</span>";
-    return m.name;
+    var base = m.name;
+    if (m.role === "god")   base += " <span class='role-god'>\u2605 God</span>";
+    if (m.role === "admin") base += " <span class='role-admin'>Admin</span>";
+    var sn = m.name.replace(/'/g, "\\'");
+    return "<span style='cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px' onclick=\"openSpotlight('" + sn + "')\">" + base + "</span>";
   }
 
   function filterBar(tabId) {
@@ -641,11 +643,78 @@
       "<div style='font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px'>Volume by snapshot</div>"+
       "<div style='margin-bottom:12px'>"+sparkBars+"</div>"+
       "<div style='font-size:12px;color:var(--text-muted);margin-bottom:14px'>"+trendStr+"</div>"+
-      "<div class='spotlight-badge-row'>"+badgeHTML(m)+"</div>";
+      "<div class='spotlight-badge-row'>"+badgeHTML(m)+"</div>"+
+      "<div id='spotlightChartSection' style='margin-top:18px'></div>";
     document.getElementById("spotlightOverlay").classList.add("open");
+    setTimeout(function(){ drawSpotlightChart(name); }, 80);
   };
   window.closeSpotlight = function(){document.getElementById("spotlightOverlay").classList.remove("open");};
   document.getElementById("spotlightOverlay").addEventListener("click",function(e){if(e.target===this)closeSpotlight();});
+
+  function drawSpotlightChart(name) {
+    var section = document.getElementById("spotlightChartSection");
+    if (!section) return;
+    var rm = rawMessages[name];
+    if (!rm || !rm.msgs.length) { section.innerHTML=""; return; }
+    var today = new Date();
+    var todayStr = today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
+    var todayStart = new Date(todayStr+"T00:00:00").getTime();
+    var todayEnd   = new Date(todayStr+"T23:59:59").getTime();
+    var msgs = rm.msgs.filter(function(m){ return m[0]>=todayStart && m[0]<=todayEnd; });
+    var displayLabel = "today";
+    if (!msgs.length) {
+      var lastTs = rm.msgs[rm.msgs.length-1][0];
+      var lastDate = new Date(lastTs);
+      var lastStr = lastDate.getFullYear()+"-"+String(lastDate.getMonth()+1).padStart(2,"0")+"-"+String(lastDate.getDate()).padStart(2,"0");
+      msgs = rm.msgs.filter(function(m){ var d=new Date(m[0]); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0")===lastStr; });
+      displayLabel = lastDate.toLocaleDateString("en-GB",{day:"numeric",month:"short"});
+    }
+    if (!msgs.length) { section.innerHTML=""; return; }
+    var hours = []; for(var h=0;h<24;h++) hours.push({scores:[],count:0});
+    msgs.forEach(function(m){ var h=new Date(m[0]).getHours(); hours[h].scores.push(m[1]); hours[h].count++; });
+    var activeH = hours.map(function(h,i){return h.count>0?i:-1;}).filter(function(i){return i>=0;});
+    if (!activeH.length) { section.innerHTML=""; return; }
+    var hMin=Math.max(0,activeH[0]-1), hMax=Math.min(23,activeH[activeH.length-1]+1);
+    var slots=hours.slice(hMin,hMax+1);
+    var labels=[]; for(var h=hMin;h<=hMax;h++) labels.push(String(h).padStart(2,"0")+":00");
+    var avgs=slots.map(function(s){return s.count?s.scores.reduce(function(a,b){return a+b;},0)/s.count:null;});
+    var counts=slots.map(function(s){return s.count;});
+    var totalMsgs=counts.reduce(function(a,b){return a+b;},0);
+    section.innerHTML=
+      "<div style=\"border-top:1px solid var(--border);padding-top:14px;margin-top:4px\">"+
+        "<div style=\"font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:8px\">"+
+          "Hourly sentiment &mdash; "+displayLabel+" &nbsp;<span style=\"font-weight:400;text-transform:none\">("+totalMsgs+" message"+(totalMsgs>1?"s":"")+")</span>"+
+        "</div>"+
+        "<canvas id=\"spotlightSentCanvas\" style=\"width:100%\"></canvas>"+
+      "</div>";
+    var canvas=document.getElementById("spotlightSentCanvas");
+    var W=canvas.parentElement.offsetWidth-4, H=100;
+    canvas.width=W*2; canvas.height=H*2; canvas.style.width=W+"px"; canvas.style.height=H+"px";
+    var ctx=canvas.getContext("2d"); ctx.scale(2,2);
+    var PAD={t:14,r:10,b:28,l:42}, PW=W-PAD.l-PAD.r, PH=H-PAD.t-PAD.b;
+    var n=labels.length;
+    var valid=avgs.filter(function(v){return v!==null;});
+    var minV=valid.length?Math.min.apply(null,valid)-0.1:-0.2;
+    var maxV=valid.length?Math.max.apply(null,valid)+0.1:0.4;
+    minV=Math.min(minV,-0.05); maxV=Math.max(maxV,0.15);
+    function sx(i){return PAD.l+(n>1?i/(n-1):0.5)*PW;}
+    function sy(v){return PAD.t+PH-((v-minV)/(maxV-minV))*PH;}
+    if(minV<0&&maxV>0){ctx.strokeStyle="rgba(0,48,135,0.1)";ctx.lineWidth=0.5;ctx.beginPath();ctx.moveTo(PAD.l,sy(0));ctx.lineTo(PAD.l+PW,sy(0));ctx.stroke();}
+    var maxCount=Math.max.apply(null,counts)||1;
+    counts.forEach(function(c,i){if(!c)return;var bh=(c/maxCount)*PH*0.35;ctx.fillStyle="rgba(0,48,135,0.07)";ctx.fillRect(sx(i)-6,PAD.t+PH-bh,12,bh);});
+    var started=false; ctx.beginPath();
+    avgs.forEach(function(v,i){if(v===null){started=false;return;}if(!started){ctx.moveTo(sx(i),sy(v));started=true;}else ctx.lineTo(sx(i),sy(v));});
+    ctx.strokeStyle="#003087";ctx.lineWidth=2;ctx.stroke();
+    avgs.forEach(function(v,i){
+      if(v===null)return;
+      ctx.beginPath();ctx.arc(sx(i),sy(v),3,0,Math.PI*2);ctx.fillStyle=v>=0?"#1a5c1a":"#9a0c22";ctx.fill();ctx.strokeStyle="#fff";ctx.lineWidth=1;ctx.stroke();
+      if(counts[i]){ctx.fillStyle="rgba(0,48,135,0.55)";ctx.font="500 8px \'Source Sans 3\',sans-serif";ctx.textAlign="center";ctx.fillText(counts[i],sx(i),sy(v)-6);}
+    });
+    ctx.fillStyle="rgba(0,48,135,0.55)";ctx.font="500 9px \'Source Sans 3\',sans-serif";ctx.textAlign="center";
+    labels.forEach(function(lbl,i){if(counts[i]>0)ctx.fillText(lbl,sx(i),H-PAD.b+12);});
+    ctx.textAlign="right";ctx.fillStyle="rgba(0,48,135,0.4)";ctx.font="500 8px \'Source Sans 3\',sans-serif";
+    [minV,(minV+maxV)/2,maxV].forEach(function(v){ctx.fillText(v.toFixed(1),PAD.l-4,sy(v)+3);});
+  }
 
   // ── EXPORT ────────────────────────────────────────────────────────────────
   window.exportTab = function(tabId, filename) {
@@ -805,59 +874,212 @@
 
   // ── MOOD TREND ────────────────────────────────────────────────────────────
   var trendRendered=false;
+  var trendMode="daily"; // "daily" or "matchday"
+  var trendMatchDate=null;
+
   function renderTrend(){
-    if(trendRendered) return; trendRendered=true;
+    if(trendRendered){ drawTrend(); return; }
+    trendRendered=true;
     var el=document.getElementById("trendTab");
-    el.innerHTML="<div class='section-title' style='border-bottom-color:var(--blue)'>&#128200; Group Mood Trend<button class='export-btn' onclick='exportTab(\"trendTab\",\"mood-trend\")'>&#128247; Export</button></div>"+
-      "<p style='font-size:13px;color:var(--text-muted);margin-bottom:16px'>Average group sentiment per day. Red dashed lines mark match days.</p>"+
-      "<div style='background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px'><canvas id='trendCanvas'></canvas></div>";
-    setTimeout(function(){
-      var byDay={};
-      Object.keys(rawMessages).forEach(function(name){
-        rawMessages[name].msgs.forEach(function(m){
-          var d=new Date(m[0]),k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
-          if(!byDay[k]) byDay[k]=[];byDay[k].push(m[1]);
-        });
+
+    // Build fixture buttons
+    var fixBtns=(window.itfcFixtures||[]).map(function(f){
+      return "<button class='filter-btn' data-tfix='"+f.date+"'>"+f.label+"</button>";
+    }).join("");
+
+    el.innerHTML=
+      "<div class='section-title' style='border-bottom-color:var(--blue)'>&#128200; Group Mood Trend"+
+        "<button class='export-btn' onclick='exportTab(\"trendTab\",\"mood-trend\")'>&#128247; Export</button>"+
+      "</div>"+
+      "<div class='filter-bar' id='trendFilterBar'>"+
+        "<span class='filter-label'>View:</span>"+
+        "<button class='filter-btn active' data-tmode='daily'>Day by day</button>"+
+        "<button class='filter-btn' data-tmode='matchday'>&#26bd; Match day</button>"+
+      "</div>"+
+      "<div id='trendFixtureBar' style='display:none;margin-bottom:14px;padding:12px 14px;background:var(--off-white);border:1px solid var(--border);border-radius:8px'>"+
+        "<div style='font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted);margin-bottom:8px'>Select a match</div>"+
+        "<div style='display:flex;flex-wrap:wrap;gap:6px'>"+fixBtns+"</div>"+
+        "<p id='trendFixtureHint' style='font-size:12px;color:var(--text-muted);margin-top:10px'>Select a match above to see 15-minute sentiment buckets from midday to midnight.</p>"+
+      "</div>"+
+      "<p id='trendDesc' style='font-size:13px;color:var(--text-muted);margin-bottom:16px'>Average group sentiment per day. Red dashed lines mark match days.</p>"+
+      "<div style='background:var(--white);border:1px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px'>"+
+        "<canvas id='trendCanvas'></canvas>"+
+        "<div id='trendNoData' style='display:none;padding:2rem;text-align:center;font-size:14px;color:var(--text-muted)'>No messages on this match day.</div>"+
+      "</div>";
+
+    // Mode filter clicks
+    document.getElementById("trendFilterBar").addEventListener("click", function(e){
+      var btn=e.target.closest("[data-tmode]"); if(!btn) return;
+      document.querySelectorAll("[data-tmode]").forEach(function(b){b.classList.remove("active");});
+      btn.classList.add("active");
+      trendMode=btn.getAttribute("data-tmode");
+      document.getElementById("trendFixtureBar").style.display=trendMode==="matchday"?"block":"none";
+      document.getElementById("trendDesc").style.display=trendMode==="matchday"?"none":"block";
+      if(trendMode==="daily") drawTrend();
+    });
+
+    // Fixture selector clicks
+    document.getElementById("trendFixtureBar").addEventListener("click", function(e){
+      var btn=e.target.closest("[data-tfix]"); if(!btn) return;
+      document.querySelectorAll("[data-tfix]").forEach(function(b){b.classList.remove("active");});
+      btn.classList.add("active");
+      trendMatchDate=btn.getAttribute("data-tfix");
+      document.getElementById("trendFixtureHint").style.display="none";
+      drawTrend();
+    });
+
+    setTimeout(drawTrend, 60);
+  }
+
+  function drawTrend(){
+    if(trendMode==="matchday") { drawMatchDayTrend(); return; }
+
+    // ── Day-by-day view ───────────────────────────────────────────────────
+    var byDay={};
+    Object.keys(rawMessages).forEach(function(name){
+      rawMessages[name].msgs.forEach(function(m){
+        var d=new Date(m[0]),k=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+        if(!byDay[k]) byDay[k]=[];byDay[k].push(m[1]);
       });
-      var days=Object.keys(byDay).sort();
-      var avgs=days.map(function(d){var a=byDay[d];return a.reduce(function(s,v){return s+v;},0)/a.length;});
-      var canvas=document.getElementById("trendCanvas");
-      var W=canvas.parentElement.offsetWidth-32,H=200;
-      canvas.width=W*2;canvas.height=H*2;canvas.style.width=W+"px";canvas.style.height=H+"px";
-      var ctx=canvas.getContext("2d");ctx.scale(2,2);
-      var PAD={t:20,r:20,b:40,l:55},PW=W-PAD.l-PAD.r,PH=H-PAD.t-PAD.b;
-      var minV=-0.2,maxV=0.4;
-      function sx(i){return PAD.l+(i/(days.length-1||1))*PW;}
-      function sy(v){return PAD.t+PH-((v-minV)/(maxV-minV))*PH;}
-      ctx.strokeStyle="rgba(0,48,135,0.15)";ctx.lineWidth=1;
-      ctx.beginPath();ctx.moveTo(PAD.l,sy(0));ctx.lineTo(PAD.l+PW,sy(0));ctx.stroke();
+    });
+    var days=Object.keys(byDay).sort();
+    var avgs=days.map(function(d){var a=byDay[d];return a.reduce(function(s,v){return s+v;},0)/a.length;});
+    paintTrendCanvas(days, avgs, function(i){ return new Date(days[i]+"T12:00:00").toLocaleDateString("en-GB",{day:"numeric",month:"short"}); }, -0.2, 0.4, true);
+  }
+
+  function drawMatchDayTrend(){
+    if(!trendMatchDate) return;
+    var date=trendMatchDate; // "YYYY-MM-DD"
+    // Build 15-min buckets from 12:00 to 23:59
+    var buckets=[];
+    for(var h=12;h<24;h++) for(var m=0;m<60;m+=15) buckets.push({h:h,m:m,scores:[],label:String(h).padStart(2,"0")+":"+String(m).padStart(2,"0")});
+
+    var dayStart=new Date(date+"T12:00:00").getTime();
+    var dayEnd  =new Date(date+"T23:59:59").getTime();
+    var midnight=new Date(date+"T00:00:00").getTime();
+
+    Object.keys(rawMessages).forEach(function(name){
+      rawMessages[name].msgs.forEach(function(msg){
+        var ts=msg[0], score=msg[1];
+        if(ts<dayStart||ts>dayEnd) return;
+        var dt=new Date(ts);
+        var minOfDay=(dt.getHours()-12)*60+dt.getMinutes();
+        var bi=Math.floor(minOfDay/15);
+        if(bi>=0&&bi<buckets.length) buckets[bi].scores.push(score);
+      });
+    });
+
+    // Filter to non-empty and compute avgs
+    var hasData=buckets.some(function(b){return b.scores.length>0;});
+    var canvas=document.getElementById("trendCanvas");
+    var noData=document.getElementById("trendNoData");
+    if(!hasData){
+      canvas.style.display="none"; noData.style.display="block"; return;
+    }
+    canvas.style.display="block"; noData.style.display="none";
+
+    // Fill empty buckets with null
+    var labels=buckets.map(function(b){return b.label;});
+    var avgs=buckets.map(function(b){return b.scores.length?b.scores.reduce(function(s,v){return s+v;},0)/b.scores.length:null;});
+    var counts=buckets.map(function(b){return b.scores.length;});
+
+    // Find sentMin/max
+    var valid=avgs.filter(function(v){return v!==null;});
+    var minV=Math.min.apply(null,valid)-0.05, maxV=Math.max.apply(null,valid)+0.05;
+    minV=Math.min(minV,-0.1); maxV=Math.max(maxV,0.2);
+
+    paintTrendCanvas(labels, avgs, function(i){
+      // Show label every 4 buckets (hourly)
+      return (i%4===0) ? labels[i] : "";
+    }, minV, maxV, false, counts);
+  }
+
+  function paintTrendCanvas(labels, avgs, labelFn, minV, maxV, showMatchLines, counts){
+    var canvas=document.getElementById("trendCanvas");
+    var W=canvas.parentElement.offsetWidth-32, H=220;
+    canvas.width=W*2; canvas.height=H*2; canvas.style.width=W+"px"; canvas.style.height=H+"px";
+    var ctx=canvas.getContext("2d"); ctx.scale(2,2);
+    var PAD={t:24,r:20,b:44,l:55}, PW=W-PAD.l-PAD.r, PH=H-PAD.t-PAD.b;
+    var n=avgs.length;
+
+    function sx(i){return PAD.l+(n>1?i/(n-1):0.5)*PW;}
+    function sy(v){return PAD.t+PH-((v-minV)/(maxV-minV))*PH;}
+
+    // Zero line
+    if(minV<0&&maxV>0){
+      ctx.strokeStyle="rgba(0,48,135,0.12)"; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(PAD.l,sy(0)); ctx.lineTo(PAD.l+PW,sy(0)); ctx.stroke();
+    }
+
+    // Collect valid points for gradient fill
+    var firstValid=avgs.findIndex(function(v){return v!==null;});
+    if(firstValid>=0){
       var grad=ctx.createLinearGradient(0,PAD.t,0,PAD.t+PH);
-      grad.addColorStop(0,"rgba(26,92,26,0.25)");grad.addColorStop(1,"rgba(26,92,26,0.01)");
-      ctx.beginPath();ctx.moveTo(sx(0),sy(avgs[0]));
-      avgs.forEach(function(v,i){ctx.lineTo(sx(i),sy(v));});
-      ctx.lineTo(sx(avgs.length-1),sy(0));ctx.lineTo(sx(0),sy(0));ctx.closePath();
-      ctx.fillStyle=grad;ctx.fill();
-      ctx.beginPath();ctx.moveTo(sx(0),sy(avgs[0]));
-      avgs.forEach(function(v,i){ctx.lineTo(sx(i),sy(v));});
-      ctx.strokeStyle="#1a5c1a";ctx.lineWidth=2.5;ctx.stroke();
+      grad.addColorStop(0,"rgba(26,92,26,0.2)"); grad.addColorStop(1,"rgba(26,92,26,0.01)");
+      ctx.beginPath();
+      var started=false;
       avgs.forEach(function(v,i){
-        ctx.beginPath();ctx.arc(sx(i),sy(v),4,0,Math.PI*2);
-        ctx.fillStyle=v>=0?"#1a5c1a":"#9a0c22";ctx.fill();
-        ctx.strokeStyle="#fff";ctx.lineWidth=1.5;ctx.stroke();
-        var d=new Date(days[i]+"T12:00:00");
-        ctx.fillStyle="rgba(0,48,135,0.6)";ctx.font="500 10px 'Source Sans 3',sans-serif";ctx.textAlign="center";
-        ctx.fillText(d.toLocaleDateString("en-GB",{day:"numeric",month:"short"}),sx(i),H-PAD.b+16);
-        ctx.fillStyle=v>=0?"#1a5c1a":"#9a0c22";ctx.font="600 9px 'Source Sans 3',sans-serif";
-        ctx.fillText((v>0?"+":"")+v.toFixed(3),sx(i),sy(v)-8);
+        if(v===null) return;
+        if(!started){ctx.moveTo(sx(i),sy(v));started=true;}
+        else ctx.lineTo(sx(i),sy(v));
       });
-      ctx.textAlign="right";ctx.fillStyle="rgba(0,48,135,0.5)";ctx.font="500 10px 'Source Sans 3',sans-serif";
-      [-0.1,0,0.1,0.2,0.3].forEach(function(v){ctx.fillText(v.toFixed(1),PAD.l-6,sy(v)+4);});
+      // Close fill to zero line
+      for(var i=n-1;i>=0;i--){ if(avgs[i]!==null){ctx.lineTo(sx(i),sy(Math.max(0,minV)));break;} }
+      if(firstValid>=0) ctx.lineTo(sx(firstValid),sy(Math.max(0,minV)));
+      ctx.closePath(); ctx.fillStyle=grad; ctx.fill();
+
+      // Line
+      ctx.beginPath(); started=false;
+      avgs.forEach(function(v,i){
+        if(v===null){started=false;return;}
+        if(!started){ctx.moveTo(sx(i),sy(v));started=true;}
+        else ctx.lineTo(sx(i),sy(v));
+      });
+      ctx.strokeStyle="#1a5c1a"; ctx.lineWidth=2; ctx.stroke();
+
+      // Dots + labels
+      avgs.forEach(function(v,i){
+        if(v===null) return;
+        ctx.beginPath(); ctx.arc(sx(i),sy(v),3.5,0,Math.PI*2);
+        ctx.fillStyle=v>=0?"#1a5c1a":"#9a0c22"; ctx.fill();
+        ctx.strokeStyle="#fff"; ctx.lineWidth=1.5; ctx.stroke();
+        // Count badge for match-day view
+        if(counts&&counts[i]>0){
+          ctx.fillStyle="rgba(0,48,135,0.5)"; ctx.font="500 8px 'Source Sans 3',sans-serif"; ctx.textAlign="center";
+          ctx.fillText(counts[i]+"msg"+(counts[i]>1?"s":""),sx(i),sy(v)-10);
+        }
+        // Value label
+        ctx.fillStyle=v>=0?"#1a5c1a":"#9a0c22"; ctx.font="600 8px 'Source Sans 3',sans-serif"; ctx.textAlign="center";
+        if(!counts) ctx.fillText((v>0?"+":"")+v.toFixed(3),sx(i),sy(v)-8);
+      });
+    }
+
+    // X axis labels
+    ctx.fillStyle="rgba(0,48,135,0.6)"; ctx.font="500 10px 'Source Sans 3',sans-serif"; ctx.textAlign="center";
+    avgs.forEach(function(v,i){
+      var lbl=labelFn(i); if(!lbl) return;
+      ctx.fillText(lbl,sx(i),H-PAD.b+16);
+    });
+
+    // Y axis
+    ctx.textAlign="right"; ctx.fillStyle="rgba(0,48,135,0.5)"; ctx.font="500 10px 'Source Sans 3',sans-serif";
+    var yTicks=5;
+    for(var t=0;t<=yTicks;t++){
+      var v=minV+(maxV-minV)*(t/yTicks);
+      ctx.fillText(v.toFixed(2),PAD.l-6,sy(v)+4);
+      ctx.strokeStyle="rgba(0,48,135,0.06)"; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(PAD.l,sy(v)); ctx.lineTo(PAD.l+PW,sy(v)); ctx.stroke();
+    }
+
+    // Match day lines on daily view
+    if(showMatchLines){
       (window.itfcFixtures||[]).forEach(function(f){
-        var di=days.indexOf(f.date);if(di<0) return;
-        var x=sx(di);ctx.strokeStyle="rgba(200,16,46,0.5)";ctx.lineWidth=1;ctx.setLineDash([3,3]);
-        ctx.beginPath();ctx.moveTo(x,PAD.t);ctx.lineTo(x,PAD.t+PH);ctx.stroke();ctx.setLineDash([]);
+        var di=labels.indexOf(f.date); if(di<0) return;
+        ctx.strokeStyle="rgba(200,16,46,0.45)"; ctx.lineWidth=1; ctx.setLineDash([3,3]);
+        ctx.beginPath(); ctx.moveTo(sx(di),PAD.t); ctx.lineTo(sx(di),PAD.t+PH); ctx.stroke();
+        ctx.setLineDash([]);
       });
-    },60);
+    }
   }
 
   // ── ACTIVITY HEATMAP ──────────────────────────────────────────────────────
