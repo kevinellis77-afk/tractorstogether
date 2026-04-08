@@ -162,6 +162,12 @@
   .spotlight-chart-row{display:grid;grid-template-columns:1fr;gap:12px;margin-top:16px;}
   .spotlight-chart-box{background:var(--off-white);border-radius:8px;padding:12px;}
   .spotlight-chart-box .chart-title{font-size:11px;margin-bottom:8px;}
+  .spotlight-msg-list{margin-top:12px;background:var(--white);border:1px solid var(--border);border-radius:8px;padding:10px;max-height:220px;overflow:auto;}
+  .spotlight-msg-title{font-family:Oswald,sans-serif;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;color:var(--text-muted);margin-bottom:6px;}
+  .spotlight-msg-item{padding:8px 0;border-bottom:1px solid var(--border);}
+  .spotlight-msg-item:last-child{border-bottom:none;padding-bottom:2px;}
+  .spotlight-msg-time{font-size:10px;font-weight:700;letter-spacing:0.04em;text-transform:uppercase;color:var(--text-muted);margin-bottom:3px;}
+  .spotlight-msg-text{font-size:12px;color:var(--text);line-height:1.35;white-space:pre-wrap;word-break:break-word;}
 
   .matchday-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px}
   .matchday-field{display:flex;flex-direction:column;gap:4px}
@@ -582,6 +588,7 @@ function openSpotlight(idx){
         "</div>"+
         "<div style='font-size:11px;color:var(--text-muted);margin:-2px 0 8px' id='spSentHint'>Click a day to drill into hours.</div>"+
         "<canvas id='spSentCanvas' height='140'></canvas>"+
+        "<div id='spTenMinMessages' class='spotlight-msg-list' style='display:none'></div>"+
       "</div>"+
     "</div>";
   document.getElementById('spotlightOverlay').classList.add('open');
@@ -670,6 +677,7 @@ function buildMemberSentimentBreakdown(memberName){
   var dayBuckets=DAYS.map(function(d){ return {date:d,label:formatLocalDate(d,{weekday:'short',day:'numeric',month:'short'}),sum:0,n:0}; });
   var hourByDay={};
   var tenMinByDayHour={};
+  var tenMinMessagesBySegment={};
   matchdayMessages.forEach(function(row){
     if(row.u!==memberName) return;
     var dayIdx=DAYS.indexOf(row.d);
@@ -685,16 +693,49 @@ function buildMemberSentimentBreakdown(memberName){
     hourByDay[row.d][hour].n+=1;
     var tenKey=row.d+'|'+hour;
     if(!tenMinByDayHour[tenKey]) tenMinByDayHour[tenKey]=new Array(6).fill(null).map(function(){ return {sum:0,n:0}; });
-    tenMinByDayHour[tenKey][Math.min(5,Math.floor(minute/10))].sum+=row.s;
-    tenMinByDayHour[tenKey][Math.min(5,Math.floor(minute/10))].n+=1;
+    var segment=Math.min(5,Math.floor(minute/10));
+    tenMinByDayHour[tenKey][segment].sum+=row.s;
+    tenMinByDayHour[tenKey][segment].n+=1;
+    var segKey=tenKey+'|'+segment;
+    if(!tenMinMessagesBySegment[segKey]) tenMinMessagesBySegment[segKey]=[];
+    tenMinMessagesBySegment[segKey].push(row);
   });
-  return {dayBuckets:dayBuckets,hourByDay:hourByDay,tenMinByDayHour:tenMinByDayHour};
+  return {dayBuckets:dayBuckets,hourByDay:hourByDay,tenMinByDayHour:tenMinByDayHour,tenMinMessagesBySegment:tenMinMessagesBySegment};
 }
 
 function initSpotlightSentiment(detail){
-  var state={level:'day',day:null,hour:null};
+  var state={level:'day',day:null,hour:null,segment:null};
   var backBtn=document.getElementById('spBackBtn');
+  var tenListEl=document.getElementById('spTenMinMessages');
   function avg(bucket){ return bucket&&bucket.n ? +(bucket.sum/bucket.n).toFixed(3) : null; }
+  function renderTenMinuteMessages(){
+    if(state.level!=='ten' || state.segment===null){
+      tenListEl.style.display='none';
+      tenListEl.innerHTML='';
+      return;
+    }
+    var segKey=state.day+'|'+state.hour+'|'+state.segment;
+    var rows=detail.tenMinMessagesBySegment[segKey]||[];
+    var fromMins=String(state.segment*10).padStart(2,'0');
+    var toMins=String(state.segment===5 ? 59 : (state.segment*10+9)).padStart(2,'0');
+    var hour=String(state.hour).padStart(2,'0');
+    if(!rows.length){
+      tenListEl.style.display='block';
+      tenListEl.innerHTML=
+        "<div class='spotlight-msg-title'>Messages · "+hour+":"+fromMins+"-"+hour+":"+toMins+"</div>"+
+        "<div style='font-size:12px;color:var(--text-muted)'>No messages for this 10-minute window.</div>";
+      return;
+    }
+    tenListEl.style.display='block';
+    tenListEl.innerHTML=
+      "<div class='spotlight-msg-title'>Messages · "+hour+":"+fromMins+"-"+hour+":"+toMins+" ("+rows.length+")</div>"+
+      rows.map(function(row){
+        return "<div class='spotlight-msg-item'>"+
+          "<div class='spotlight-msg-time'>"+row.d+" · "+row.t+"</div>"+
+          "<div class='spotlight-msg-text'>"+escapeHtml(row.x||'')+"</div>"+
+        "</div>";
+      }).join('');
+  }
   function render(){
     var title=document.getElementById('spSentTitle');
     var hint=document.getElementById('spSentHint');
@@ -726,7 +767,7 @@ function initSpotlightSentiment(detail){
       var hourLabel=String(state.hour).padStart(2,'0')+':00';
       var tenKey=state.day+'|'+state.hour;
       title.textContent='🕙 '+hourLabel+' sentiment by 10-minute window';
-      hint.textContent='Ten-minute drilldown for this hour.';
+      hint.textContent='Click a 10-minute point to view messages from that window.';
       var tenBuckets=detail.tenMinByDayHour[tenKey]||[];
       points=new Array(6).fill(null).map(function(_,idx){
         var start=String(idx*10).padStart(2,'0');
@@ -736,7 +777,7 @@ function initSpotlightSentiment(detail){
       labels=points.map(function(p){ return p.label; });
       ticks=[0,1,2,3,4,5];
       emptyText='No 10-minute sentiment data for this hour';
-      clickTarget=null;
+      clickTarget='segment';
       backBtn.style.display='inline-block';
     }
     ticks=Array.from(new Set(ticks.filter(function(i){ return i>=0 && i<labels.length; })));
@@ -758,20 +799,27 @@ function initSpotlightSentiment(detail){
         state.level='hour';
         state.day=points[closest.p.index].date;
         state.hour=null;
+        state.segment=null;
       }else if(clickTarget==='hour'){
         state.level='ten';
         state.hour=points[closest.p.index].hour;
+        state.segment=null;
+      }else if(clickTarget==='segment'){
+        state.segment=points[closest.p.index].segment;
       }
       render();
     };
+    renderTenMinuteMessages();
   }
   backBtn.onclick=function(){
     if(state.level==='ten'){
       state.level='hour';
       state.hour=null;
+      state.segment=null;
     }else{
       state.level='day';
       state.day=null;
+      state.segment=null;
     }
     render();
   };
