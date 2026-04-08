@@ -548,8 +548,7 @@ window.userSentCurrentDayByHour=userSentCurrentDayByHour;
 function openSpotlight(idx){
   var m=members[idx];
   var esc=engScore(m);
-  var dayData=userSentByDay[m.name]||[];
-  var hourData=(userSentCurrentDayByHour&&userSentCurrentDayByHour[m.name])||[];
+  var sentimentBreakdown=buildMemberSentimentBreakdown(m.name);
   document.getElementById('spotlightBody').innerHTML=
     "<div class='spotlight-name'>"+m.name+"</div>"+
     "<div class='spotlight-meta'>"+m.days+" days active · "+getBadge(m)+" "+sentChip(m.sent)+"</div>"+
@@ -565,14 +564,19 @@ function openSpotlight(idx){
       "<span>📸 "+m.media+" media</span><span>🔗 "+m.links+" links</span><span>🤬 "+m.swears+" swears</span><span>↩ "+m.replies+" replies</span>"+
     "</div>"+
     "<div class='spotlight-chart-row'>"+
-      "<div class='spotlight-chart-box'><div class='chart-title'>⏰ 6 Apr sentiment by hour</div><canvas id='spHourCanvas' height='120'></canvas></div>"+
-      "<div class='spotlight-chart-box'><div class='chart-title'>📈 Sentiment by day</div><canvas id='spDayCanvas' height='120'></canvas></div>"+
+      "<div class='spotlight-chart-box'>"+
+        "<div style='display:flex;align-items:center;justify-content:space-between;gap:10px'>"+
+          "<div class='chart-title' id='spSentTitle'>📈 Sentiment by day</div>"+
+          "<button id='spBackBtn' class='filter-btn' style='display:none;padding:3px 10px'>← Back</button>"+
+        "</div>"+
+        "<div style='font-size:11px;color:var(--text-muted);margin:-2px 0 8px' id='spSentHint'>Click a day to drill into hours.</div>"+
+        "<canvas id='spSentCanvas' height='140'></canvas>"+
+      "</div>"+
     "</div>";
   document.getElementById('spotlightOverlay').classList.add('open');
-  // Draw after DOM paint
+
   setTimeout(function(){
-    drawSpotlightHour(hourData);
-    drawSpotlightDay(dayData);
+    initSpotlightSentiment(sentimentBreakdown);
   },60);
 }
 function closeSpotlight(e){
@@ -639,19 +643,128 @@ function drawLineChart(canvasId, points, labels, emptyText, xTickIndexes){
     var x=pad.l + (labels.length===1 ? chartW/2 : (i/(labels.length-1))*chartW);
     ctx.fillText(labels[i],x,H-6);
   });
+
+  return {
+    points: points.map(function(point,i){
+      if(point.v===null||point.v===undefined) return null;
+      var x=pad.l + (points.length===1 ? chartW/2 : (i/(points.length-1))*chartW);
+      var y=pad.t + ((max-point.v)/(max-min))*chartH;
+      return {x:x,y:y,index:i,point:point};
+    }).filter(Boolean),
+    canvas: canvas
+  };
 }
 
-function drawSpotlightHour(hourData){
-  var points=new Array(24).fill(null).map(function(_,i){ return {v:hourData[i],label:i+'h'}; });
-  drawLineChart('spHourCanvas', points, points.map(function(p){ return p.label; }), 'Current-day hourly sentiment data not available in this file', [0,6,12,18,23]);
+function buildMemberSentimentBreakdown(memberName){
+  var dayBuckets=DAYS.map(function(d){ return {date:d,label:formatLocalDate(d,{weekday:'short',day:'numeric',month:'short'}),sum:0,n:0}; });
+  var hourByDay={};
+  var tenMinByDayHour={};
+  matchdayMessages.forEach(function(row){
+    if(row.u!==memberName) return;
+    var dayIdx=DAYS.indexOf(row.d);
+    if(dayIdx===-1) return;
+    dayBuckets[dayIdx].sum+=row.s;
+    dayBuckets[dayIdx].n+=1;
+    var hm=String(row.t||'').split(':');
+    var hour=parseInt(hm[0],10);
+    var minute=parseInt(hm[1],10);
+    if(isNaN(hour)||isNaN(minute)) return;
+    if(!hourByDay[row.d]) hourByDay[row.d]=new Array(24).fill(null).map(function(){ return {sum:0,n:0}; });
+    hourByDay[row.d][hour].sum+=row.s;
+    hourByDay[row.d][hour].n+=1;
+    var tenKey=row.d+'|'+hour;
+    if(!tenMinByDayHour[tenKey]) tenMinByDayHour[tenKey]=new Array(6).fill(null).map(function(){ return {sum:0,n:0}; });
+    tenMinByDayHour[tenKey][Math.min(5,Math.floor(minute/10))].sum+=row.s;
+    tenMinByDayHour[tenKey][Math.min(5,Math.floor(minute/10))].n+=1;
+  });
+  return {dayBuckets:dayBuckets,hourByDay:hourByDay,tenMinByDayHour:tenMinByDayHour};
 }
 
-function drawSpotlightDay(dayData){
-  var points=DAYS.map(function(d,i){ return {v:dayData[i],label:DAY_LABELS[i]}; });
-  var ticks=[0];
-  if(points.length>2) ticks.push(Math.floor((points.length-1)/2));
-  if(points.length>1) ticks.push(points.length-1);
-  drawLineChart('spDayCanvas', points, points.map(function(p){ return p.label; }), 'No daily sentiment data', Array.from(new Set(ticks)));
+function initSpotlightSentiment(detail){
+  var state={level:'day',day:null,hour:null};
+  var backBtn=document.getElementById('spBackBtn');
+  function avg(bucket){ return bucket&&bucket.n ? +(bucket.sum/bucket.n).toFixed(3) : null; }
+  function render(){
+    var title=document.getElementById('spSentTitle');
+    var hint=document.getElementById('spSentHint');
+    var points,labels,ticks,emptyText,clickTarget;
+    if(state.level==='day'){
+      title.textContent='📈 Sentiment by day';
+      hint.textContent='Click a day to drill into hours.';
+      points=detail.dayBuckets.map(function(b){ return {v:avg(b),label:b.label,date:b.date}; });
+      labels=points.map(function(p){ return p.label; });
+      ticks=[0,Math.floor((points.length-1)/2),points.length-1];
+      emptyText='No daily sentiment data';
+      clickTarget='day';
+      backBtn.style.display='none';
+    }else if(state.level==='hour'){
+      var dayLabel=formatLocalDate(state.day,{weekday:'short',day:'numeric',month:'short'});
+      title.textContent='⏰ '+dayLabel+' sentiment by hour';
+      hint.textContent='Click an hour to drill into 10-minute windows.';
+      var hourBuckets=detail.hourByDay[state.day]||[];
+      points=new Array(24).fill(null).map(function(_,h){
+        var bucket=hourBuckets[h];
+        return {v:avg(bucket),label:String(h).padStart(2,'0')+':00',hour:h};
+      });
+      labels=points.map(function(p){ return p.label; });
+      ticks=[0,6,12,18,23];
+      emptyText='No hourly sentiment data for this day';
+      clickTarget='hour';
+      backBtn.style.display='inline-block';
+    }else{
+      var hourLabel=String(state.hour).padStart(2,'0')+':00';
+      var tenKey=state.day+'|'+state.hour;
+      title.textContent='🕙 '+hourLabel+' sentiment by 10-minute window';
+      hint.textContent='Ten-minute drilldown for this hour.';
+      var tenBuckets=detail.tenMinByDayHour[tenKey]||[];
+      points=new Array(6).fill(null).map(function(_,idx){
+        var start=String(idx*10).padStart(2,'0');
+        var bucket=tenBuckets[idx];
+        return {v:avg(bucket),label:start+'m',segment:idx};
+      });
+      labels=points.map(function(p){ return p.label; });
+      ticks=[0,1,2,3,4,5];
+      emptyText='No 10-minute sentiment data for this hour';
+      clickTarget=null;
+      backBtn.style.display='inline-block';
+    }
+    ticks=Array.from(new Set(ticks.filter(function(i){ return i>=0 && i<labels.length; })));
+    var renderedChart=drawLineChart('spSentCanvas', points, labels, emptyText, ticks);
+    var canvas=renderedChart && renderedChart.canvas;
+    if(!canvas) return;
+    canvas.style.cursor=clickTarget ? 'pointer' : 'default';
+    canvas.onclick=function(e){
+      if(!clickTarget || !renderedChart.points.length) return;
+      var rect=canvas.getBoundingClientRect();
+      var mx=e.clientX-rect.left;
+      var my=e.clientY-rect.top;
+      var closest=renderedChart.points.reduce(function(best,p){
+        var d=Math.hypot(mx-p.x,my-p.y);
+        return (!best||d<best.d)?{p:p,d:d}:best;
+      },null);
+      if(!closest || closest.d>18) return;
+      if(clickTarget==='day'){
+        state.level='hour';
+        state.day=points[closest.p.index].date;
+        state.hour=null;
+      }else if(clickTarget==='hour'){
+        state.level='ten';
+        state.hour=points[closest.p.index].hour;
+      }
+      render();
+    };
+  }
+  backBtn.onclick=function(){
+    if(state.level==='ten'){
+      state.level='hour';
+      state.hour=null;
+    }else{
+      state.level='day';
+      state.day=null;
+    }
+    render();
+  };
+  render();
 }
 
 // ── OVERVIEW ─────────────────────────────────────────────────────────────────
