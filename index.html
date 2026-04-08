@@ -375,6 +375,12 @@
       <div class="section" id="tab-matrix">
         <div class="section-title">🎯 Happy Clapper Matrix</div>
         <div class="info-bar">📌 <strong>X-axis = Average sentiment</strong> · <strong>Y-axis = Message volume</strong>. Quadrants: 🥰 Happy Clappers, 😶 Positive Quiet, 😤 Grumpy Prolific, 😒 Negative Quiet. Bubble size still reflects message volume. Click a bubble to see member details.</div>
+        <div class="chart-card" style="margin-bottom:12px;padding:10px 12px">
+          <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer">
+            <input id="matrixIncludeAdmins" type="checkbox" checked>
+            Include Admins (Kev Ellis, Jason Milton &amp; Skip Intro)
+          </label>
+        </div>
         <div class="matrix-wrap">
           <canvas id="matrixCanvas" height="420"></canvas>
           <div class="matrix-tooltip" id="matrixTooltip"></div>
@@ -1218,6 +1224,12 @@ renderLeaderboard('msgs',null);
 renderFreshnessIndicator();
 initMatchdayControls();
 updateMatchdayTracker();
+var matrixIncludeAdminsToggle=document.getElementById('matrixIncludeAdmins');
+if(matrixIncludeAdminsToggle){
+  matrixIncludeAdminsToggle.addEventListener('change',function(){
+    renderMatrix();
+  });
+}
 
 // ── ACTIVITY ──────────────────────────────────────────────────────────────────
 function renderActivity(){
@@ -1737,8 +1749,19 @@ function renderMatrix(){
     var plotW=W-pad.l-pad.r;
     var plotH=canvas.height-pad.t-pad.b;
 
-    // Use only members with >=3 messages for the matrix
-    var matrixMembers=members.filter(function(m){return m.msgs>=3;});
+    var includeAdminsToggle=document.getElementById('matrixIncludeAdmins');
+    var includeAdmins=!includeAdminsToggle || includeAdminsToggle.checked;
+    var matrixAdminNames={'Kev Ellis':true,'Jason Milton':true,'Skip Intro':true};
+
+    // Use only members with >=3 messages for the matrix and optional admin filtering
+    var matrixMembers=members.filter(function(m){
+      return m.msgs>=3 && (includeAdmins || !matrixAdminNames[m.name]);
+    });
+    if(!matrixMembers.length){
+      document.getElementById('quadrantBreakdown').innerHTML="<div style='font-size:12px;color:var(--text-muted)'>No members available for the current filter.</div>";
+      document.getElementById('matrixLegends').innerHTML="<div style='font-size:12px;color:var(--text-muted)'>Try enabling admins to repopulate the matrix.</div>";
+      return;
+    }
     var maxMsgs=Math.max.apply(null,matrixMembers.map(function(m){return m.msgs;}));
     var minSent=Math.min.apply(null,matrixMembers.map(function(m){return m.sent;}))-0.05;
     var maxSent=Math.max.apply(null,matrixMembers.map(function(m){return m.sent;}))+0.05;
