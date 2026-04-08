@@ -818,7 +818,40 @@ var hourActivity = [3, 0, 0, 0, 0, 1, 14, 49, 91, 157, 87, 123, 109, 124, 276, 1
 var swearWords = [{"word": "shit", "count": 27, "topUser": "Kev Ellis"}, {"word": "fuck", "count": 22, "topUser": "Kev Ellis"}, {"word": "fucking", "count": 15, "topUser": "Kev Ellis"}, {"word": "bloody", "count": 11, "topUser": "Jason Milton"}, {"word": "piss", "count": 7, "topUser": "Kev Ellis"}, {"word": "shite", "count": 7, "topUser": "Kev Ellis"}, {"word": "bollocks", "count": 6, "topUser": "Kev Ellis"}, {"word": "bugger", "count": 4, "topUser": "Jason Milton"}, {"word": "cunt", "count": 3, "topUser": "Skip Intro"}, {"word": "crap", "count": 3, "topUser": "Skip Intro"}, {"word": "prick", "count": 2, "topUser": "Kev Ellis"}, {"word": "cock", "count": 2, "topUser": "Skip Intro"}, {"word": "dick", "count": 1, "topUser": "Krissy Day"}, {"word": "bastard", "count": 1, "topUser": "Phil"}];
 var swearerList=members.filter(function(m){return m.swears>0;}).sort(function(a,b){return b.swears-a.swears;});
 var topWords = [{"word": "all", "count": 135}, {"word": "think", "count": 117}, {"word": "one", "count": 108}, {"word": "game", "count": 108}, {"word": "what", "count": 102}, {"word": "about", "count": 99}, {"word": "like", "count": 94}, {"word": "good", "count": 92}, {"word": "now", "count": 88}, {"word": "back", "count": 80}, {"word": "when", "count": 75}, {"word": "millwall", "count": 74}, {"word": "who", "count": 70}, {"word": "how", "count": 70}, {"word": "more", "count": 69}, {"word": "some", "count": 65}, {"word": "season", "count": 65}, {"word": "boro", "count": 64}, {"word": "see", "count": 63}, {"word": "going", "count": 63}, {"word": "time", "count": 62}, {"word": "yeah", "count": 60}, {"word": "over", "count": 60}, {"word": "well", "count": 59}];
+
 var reactionEmojis = [{"e": "👍", "c": 482}, {"e": "😁", "c": 449}, {"e": "🤣", "c": 357}, {"e": "❤", "c": 143}, {"e": "🔥", "c": 105}, {"e": "💯", "c": 94}, {"e": "👏", "c": 74}, {"e": "🙏", "c": 35}, {"e": "😱", "c": 32}, {"e": "🥴", "c": 17}, {"e": "👀", "c": 11}, {"e": "🙈", "c": 11}];
+var importMeta = null;
+
+// Try enriched dataset first, fallback to embedded sample data.
+(function loadEnrichedDataset(){
+  try {
+    var req = new XMLHttpRequest();
+    req.open('GET', 'data/messages_enriched.json', false);
+    req.send(null);
+    if (req.status < 200 || req.status >= 300 || !req.responseText) return;
+    var parsed = JSON.parse(req.responseText);
+    var rows = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.messages) ? parsed.messages : null);
+    if (!rows || !rows.length) return;
+    matchdayMessages = rows.map(function(m){
+      return { d: m.d, t: m.t, u: m.u, s: typeof m.s === 'number' ? m.s : (typeof m.sentimentScore === 'number' ? m.sentimentScore : 0), x: m.x || '' };
+    });
+    if (parsed.aggregates) {
+      DAYS = parsed.aggregates.DAYS || DAYS;
+      DAY_LABELS = parsed.aggregates.DAY_LABELS || DAY_LABELS;
+      groupSentByDay = parsed.aggregates.groupSentByDay || groupSentByDay;
+      members = parsed.aggregates.members || members;
+      dayActivity = parsed.aggregates.dayActivity || dayActivity;
+      hourActivity = parsed.aggregates.hourActivity || hourActivity;
+      swearWords = parsed.aggregates.swearWords || swearWords;
+      topWords = parsed.aggregates.topWords || topWords;
+      reactionEmojis = parsed.aggregates.reactionEmojis || reactionEmojis;
+    }
+    if (parsed.summary) {
+      matchdayMessages.push(parsed.summary);
+    }
+    importMeta = parsed.importStats || null;
+  } catch (_e) {}
+})();
 
 // ── NORMALISED DATA LAYER ─────────────────────────────────────────────────────
 var rawMatchdayRows = Array.isArray(matchdayMessages) ? matchdayMessages.slice() : [];
@@ -1475,6 +1508,8 @@ function initSpotlightSentiment(detail){
     sc('Total Members',String(members.length),'','Current group size after removals'),
     sc('Active Senders',String(activeSenders),'','Sent at least 1 message'),
     sc('Total Messages',totalMessages.toLocaleString('en-GB'),'','User messages in export'),
+    sc('Latest Import', importMeta && importMeta.lastImportTimestamp ? new Date(importMeta.lastImportTimestamp).toLocaleString('en-GB') : '--', 'purple', 'Import timestamp'),
+    sc('New This Run', importMeta && typeof importMeta.newMessagesProcessed==='number' ? importMeta.newMessagesProcessed : '--', 'success', 'Incremental import delta'),
     sc('Avg Sentiment',(avgSentimentAll>0?'+':'')+avgSentimentAll.toFixed(2),'success','Based on the latest export'),
   ].join('');
 
