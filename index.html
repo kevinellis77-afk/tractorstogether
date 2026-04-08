@@ -172,11 +172,15 @@
   .matchday-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:end;margin-bottom:16px}
   .matchday-field{display:flex;flex-direction:column;gap:4px}
   .matchday-field label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text-muted)}
-  .matchday-field input{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--white);font:inherit;color:var(--text)}
+  .matchday-field input,.matchday-field select,.matchday-field textarea{padding:9px 10px;border:1px solid var(--border);border-radius:8px;background:var(--white);font:inherit;color:var(--text)}
+  .matchday-field textarea{min-height:88px;resize:vertical;line-height:1.35}
   .matchday-btn{padding:10px 14px;border:none;border-radius:8px;background:var(--blue);color:#fff;font-family:Oswald,sans-serif;font-size:12px;letter-spacing:0.04em;text-transform:uppercase;cursor:pointer}
   .matchday-btn:hover{background:var(--blue-dark)}
+  .matchday-btn.alt{background:#4a5a7a}
+  .matchday-btn.alt:hover{background:#38445f}
   .phase-chip{display:inline-block;padding:3px 8px;border-radius:999px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
   .phase-pre{background:#e8eef8;color:#003087}.phase-live{background:#fff3cd;color:#7a5000}.phase-post{background:#e8f4e8;color:#1a5c1a}
+  .matchday-point-posts{margin-top:8px;background:var(--white);border:1px solid var(--border);border-radius:10px;padding:12px}
 
   @media(max-width:600px){
     .stats{grid-template-columns:repeat(2,1fr);}
@@ -303,6 +307,10 @@
         <div class="info-bar">📡 <strong>Track mood swings around a fixture.</strong> Filter messages from a chosen window, split them into pre-match, in-game and post-match phases, and see how sentiment moves as the day unfolds.</div>
         <div class="matchday-controls">
           <div class="matchday-field" style="min-width:220px;flex:1 1 240px">
+            <label for="mdHistory">Match History</label>
+            <select id="mdHistory"></select>
+          </div>
+          <div class="matchday-field" style="min-width:220px;flex:1 1 240px">
             <label for="mdFixture">Fixture</label>
             <input id="mdFixture" type="text" value="Ipswich v Birmingham"/>
           </div>
@@ -322,12 +330,22 @@
             <label for="mdEnd">Track to</label>
             <input id="mdEnd" type="time" value="23:59"/>
           </div>
+          <button class="matchday-btn alt" onclick="createNewMatchdayConfig()">New</button>
+          <button class="matchday-btn alt" onclick="saveCurrentMatchdayConfig()">Save</button>
+          <button class="matchday-btn alt" onclick="deleteCurrentMatchdayConfig()">Delete</button>
           <button class="matchday-btn" onclick="updateMatchdayTracker()">Update</button>
+        </div>
+        <div class="matchday-controls" style="margin-top:-6px">
+          <div class="matchday-field" style="min-width:300px;flex:1 1 420px">
+            <label for="mdActions">Match actions (one per line: minute|type|label)</label>
+            <textarea id="mdActions" placeholder="12|goal|Town lead&#10;45|yellow|Booked for dissent&#10;50|goal|Opposition equaliser"></textarea>
+          </div>
         </div>
         <div class="stats" id="matchdayStats"></div>
         <div class="chart-card"><div class="chart-title" id="matchdaySentTitle">📈 Sentiment by 30-minute window</div><canvas id="matchdaySentCanvas" height="180"></canvas></div>
         <div class="chart-card"><div class="chart-title">💬 Message volume by 30-minute window</div><canvas id="matchdayVolCanvas" height="140"></canvas></div>
         <div class="chart-card"><div class="chart-title">🕒 Match activity timeline (messages per minute)</div><canvas id="matchdayTimelineCanvas" height="160"></canvas></div>
+        <div id="matchdayPointPosts" class="matchday-point-posts" style="display:none"></div>
         <div class="two-col">
           <div class="chart-card"><div class="chart-title">⏱️ Phase breakdown</div><div id="matchdayPhaseBreakdown"></div></div>
           <div class="chart-card"><div class="chart-title">⚡ Most charged messages</div><div id="matchdayCharged"></div></div>
@@ -503,6 +521,156 @@ function barRow(label,value,max,color,suffix,labelWidth){
     "<div class='bar-count'>"+value+suffix+"</div></div>";
 }
 function toggleSidebar(){document.getElementById('sidebar').classList.toggle('open');document.getElementById('sidebarOverlay').classList.toggle('open');}
+var MATCHDAY_STORAGE_KEY='tt_matchday_configs_v1';
+var activeMatchdayConfigId='';
+
+function toMinutes(t){
+  var p=String(t||'00:00').split(':');
+  return (+p[0])*60 + (+p[1]||0);
+}
+function fmtClock(mins){
+  var m=((mins%1440)+1440)%1440;
+  return String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+}
+function gameMinuteToClockMinute(minute,kickoffM){
+  var m=Math.max(0, +minute||0);
+  if(m<=45) return kickoffM+m;
+  return kickoffM+45+15+(m-45);
+}
+function parseMatchActions(text, kickoffM){
+  return String(text||'').split('\n').map(function(line){
+    var raw=line.trim();
+    if(!raw) return null;
+    var parts=raw.split('|').map(function(p){ return p.trim(); });
+    var minute=parseInt(parts[0],10);
+    if(isNaN(minute)) return null;
+    var type=(parts[1]||'event').toLowerCase();
+    var label=(parts[2]||parts[1]||('Minute '+minute)).trim();
+    return {
+      minute: minute,
+      type: type,
+      label: label,
+      clockM: gameMinuteToClockMinute(minute, kickoffM),
+      clock: fmtClock(gameMinuteToClockMinute(minute, kickoffM))
+    };
+  }).filter(Boolean).sort(function(a,b){ return a.clockM-b.clockM; });
+}
+function markerColor(type){
+  if(type==='goal') return 'rgba(26,122,26,0.92)';
+  if(type==='card' || type==='yellow' || type==='red') return 'rgba(200,16,46,0.92)';
+  if(type==='sub' || type==='substitution') return 'rgba(0,68,184,0.92)';
+  return 'rgba(122,80,0,0.85)';
+}
+function readMatchdayFormConfig(){
+  return {
+    id: activeMatchdayConfigId || (Date.now().toString(36)),
+    fixture: (document.getElementById('mdFixture').value||'Match Day').trim(),
+    date: document.getElementById('mdDate').value,
+    start: document.getElementById('mdStart').value||'12:00',
+    kickoff: document.getElementById('mdKickoff').value||'15:00',
+    end: document.getElementById('mdEnd').value||'23:59',
+    actionsText: document.getElementById('mdActions').value||''
+  };
+}
+function writeMatchdayFormConfig(cfg){
+  document.getElementById('mdFixture').value=cfg.fixture||'';
+  document.getElementById('mdDate').value=cfg.date||'';
+  document.getElementById('mdStart').value=cfg.start||'12:00';
+  document.getElementById('mdKickoff').value=cfg.kickoff||'15:00';
+  document.getElementById('mdEnd').value=cfg.end||'23:59';
+  document.getElementById('mdActions').value=cfg.actionsText||'';
+}
+function loadMatchdayConfigs(){
+  try{
+    var parsed=JSON.parse(localStorage.getItem(MATCHDAY_STORAGE_KEY)||'[]');
+    if(Array.isArray(parsed) && parsed.length) return parsed;
+  }catch(_e){}
+  return [{
+    id:'default-2026-04-06',
+    fixture:(document.getElementById('mdFixture').value||'Ipswich v Birmingham').trim(),
+    date:document.getElementById('mdDate').value||'2026-04-06',
+    start:document.getElementById('mdStart').value||'12:00',
+    kickoff:document.getElementById('mdKickoff').value||'15:00',
+    end:document.getElementById('mdEnd').value||'23:59',
+    actionsText:''
+  }];
+}
+function saveMatchdayConfigs(configs){
+  localStorage.setItem(MATCHDAY_STORAGE_KEY, JSON.stringify(configs));
+}
+function renderMatchdayHistorySelect(configs, selectedId){
+  var sel=document.getElementById('mdHistory');
+  if(!sel) return;
+  sel.innerHTML=configs.map(function(cfg){
+    var lbl=(cfg.date?cfg.date+' · ':'') + (cfg.fixture||'Unnamed fixture');
+    return "<option value='"+escapeHtml(cfg.id)+"'>"+escapeHtml(lbl)+"</option>";
+  }).join('');
+  var pick=configs.some(function(c){return c.id===selectedId;}) ? selectedId : (configs[0]&&configs[0].id);
+  if(pick){ sel.value=pick; activeMatchdayConfigId=pick; }
+}
+function saveCurrentMatchdayConfig(){
+  var cfg=readMatchdayFormConfig();
+  activeMatchdayConfigId=cfg.id;
+  var configs=loadMatchdayConfigs();
+  var idx=configs.findIndex(function(c){ return c.id===cfg.id; });
+  if(idx===-1) configs.unshift(cfg); else configs[idx]=cfg;
+  saveMatchdayConfigs(configs);
+  renderMatchdayHistorySelect(configs,cfg.id);
+  updateMatchdayTracker();
+}
+function createNewMatchdayConfig(){
+  activeMatchdayConfigId='md-'+Date.now().toString(36);
+  writeMatchdayFormConfig({
+    fixture:'',
+    date:'',
+    start:'12:00',
+    kickoff:'15:00',
+    end:'23:59',
+    actionsText:''
+  });
+  var posts=document.getElementById('matchdayPointPosts');
+  if(posts){ posts.style.display='none'; posts.innerHTML=''; }
+  updateMatchdayTracker();
+}
+function deleteCurrentMatchdayConfig(){
+  if(!activeMatchdayConfigId) return;
+  var configs=loadMatchdayConfigs().filter(function(cfg){ return cfg.id!==activeMatchdayConfigId; });
+  if(!configs.length){
+    createNewMatchdayConfig();
+    saveMatchdayConfigs([]);
+    renderMatchdayHistorySelect(loadMatchdayConfigs(), activeMatchdayConfigId);
+    return;
+  }
+  saveMatchdayConfigs(configs);
+  activeMatchdayConfigId=configs[0].id;
+  writeMatchdayFormConfig(configs[0]);
+  renderMatchdayHistorySelect(configs,activeMatchdayConfigId);
+  updateMatchdayTracker();
+}
+function initMatchdayControls(){
+  var configs=loadMatchdayConfigs();
+  var selected=(configs[0]&&configs[0].id)||'';
+  renderMatchdayHistorySelect(configs,selected);
+  if(configs[0]){
+    activeMatchdayConfigId=configs[0].id;
+    writeMatchdayFormConfig(configs[0]);
+  }
+  document.getElementById('mdHistory').addEventListener('change',function(e){
+    var configsNow=loadMatchdayConfigs();
+    var cfg=configsNow.find(function(c){ return c.id===e.target.value; });
+    if(!cfg) return;
+    activeMatchdayConfigId=cfg.id;
+    writeMatchdayFormConfig(cfg);
+    updateMatchdayTracker();
+  });
+  ['mdFixture','mdDate','mdStart','mdKickoff','mdEnd'].forEach(function(id){
+    var el=document.getElementById(id);
+    if(!el) return;
+    el.addEventListener('input', updateMatchdayTracker);
+    el.addEventListener('change', updateMatchdayTracker);
+  });
+  document.getElementById('mdActions').addEventListener('input', updateMatchdayTracker);
+}
 
 function getLocalDate(dateStr){
   return new Date(dateStr+'T12:00:00');
@@ -605,7 +773,7 @@ function closeSpotlight(e){
 window.openSpotlight=openSpotlight;
 window.closeSpotlight=closeSpotlight;
 
-function drawLineChart(canvasId, points, labels, emptyText, xTickIndexes){
+function drawLineChart(canvasId, points, labels, emptyText, xTickIndexes, markers){
   var canvas=document.getElementById(canvasId);
   if(!canvas) return;
   var W=canvas.parentElement.clientWidth-24;
@@ -660,6 +828,15 @@ function drawLineChart(canvasId, points, labels, emptyText, xTickIndexes){
     if(i<0 || i>=labels.length) return;
     var x=pad.l + (labels.length===1 ? chartW/2 : (i/(labels.length-1))*chartW);
     ctx.fillText(labels[i],x,H-6);
+  });
+  (markers||[]).forEach(function(marker){
+    if(marker.index===undefined || marker.index===null || !isFinite(marker.index)) return;
+    var x=pad.l + (labels.length===1 ? chartW/2 : (marker.index/(labels.length-1))*chartW);
+    ctx.strokeStyle=markerColor(marker.type);
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,H-pad.b+2); ctx.stroke();
+    ctx.fillStyle=markerColor(marker.type);
+    ctx.beginPath(); ctx.arc(x,pad.t+4,2.4,0,Math.PI*2); ctx.fill();
   });
 
   return {
@@ -921,9 +1098,14 @@ function renderLeaderboard(key,btn){
     "<th class='num'>Msgs</th><th>Mood</th><th>Status</th></tr></thead><tbody>"+rows+"</tbody></table>";
 }
 window.sortLeaderboard=renderLeaderboard;
+window.updateMatchdayTracker=updateMatchdayTracker;
+window.saveCurrentMatchdayConfig=saveCurrentMatchdayConfig;
+window.createNewMatchdayConfig=createNewMatchdayConfig;
+window.deleteCurrentMatchdayConfig=deleteCurrentMatchdayConfig;
 rendered['leaderboard']=true;
 renderLeaderboard('msgs',null);
 renderFreshnessIndicator();
+initMatchdayControls();
 updateMatchdayTracker();
 
 // ── ACTIVITY ──────────────────────────────────────────────────────────────────
@@ -1070,7 +1252,7 @@ function renderFreshnessIndicator(){
   el.innerHTML="<span class='freshness-dot'></span>"+label+" · Updated "+human;
 }
 
-function drawCountBars(canvasId, values, labels){
+function drawCountBars(canvasId, values, labels, markers){
   var canvas=document.getElementById(canvasId);
   if(!canvas) return;
   var W=canvas.parentElement.clientWidth-40;
@@ -1092,6 +1274,15 @@ function drawCountBars(canvasId, values, labels){
       ctx.textAlign='center';
       ctx.fillText(labels[i],x+barW/2,H-6);
     }
+  });
+  var pad={l:10,r:10,t:12,b:24};
+  var chartW=W-pad.l-pad.r;
+  (markers||[]).forEach(function(marker){
+    if(marker.index===undefined || marker.index===null || !isFinite(marker.index)) return;
+    var x=pad.l + (labels.length===1 ? chartW/2 : (marker.index/(labels.length-1))*chartW);
+    ctx.strokeStyle=markerColor(marker.type);
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,H-pad.b+2); ctx.stroke();
   });
 }
 function drawCountLine(canvasId, values, labels){
@@ -1139,8 +1330,23 @@ function updateMatchdayTracker(){
   var start=document.getElementById('mdStart').value||'12:00';
   var kickoff=document.getElementById('mdKickoff').value||'15:00';
   var end=document.getElementById('mdEnd').value||'23:59';
-  function toMinutes(t){ var p=t.split(':'); return (+p[0])*60 + (+p[1]); }
   var startM=toMinutes(start), kickM=toMinutes(kickoff), endM=toMinutes(end);
+  var actions=parseMatchActions(document.getElementById('mdActions').value||'', kickM).filter(function(a){
+    return a.clockM>=startM && a.clockM<=endM;
+  });
+  if(!date){
+    document.getElementById('matchdaySentTitle').textContent='📈 '+(fixture||'Match Day')+' sentiment by 30-minute window';
+    document.getElementById('matchdayStats').innerHTML=sc('Missing date','—','warning','Pick a date to load match messages');
+    document.getElementById('matchdayPhaseBreakdown').innerHTML='';
+    document.getElementById('matchdayCharged').innerHTML="<div style='font-size:12px;color:var(--text-muted)'>Choose a date to inspect match posts.</div>";
+    var postsEmpty=document.getElementById('matchdayPointPosts');
+    postsEmpty.style.display='none';
+    postsEmpty.innerHTML='';
+    drawLineChart('matchdaySentCanvas', [{v:null}], [''], 'Pick a date to display sentiment', [0], []);
+    drawCountBars('matchdayVolCanvas', [0], [''], []);
+    drawCountLine('matchdayTimelineCanvas', [0], ['']);
+    return;
+  }
   var sentMsgs=matchdayMessages.filter(function(m){ return m.d===date && toMinutes(m.t)>=startM && toMinutes(m.t)<=endM; });
   var allMsgs=allMessageTimes.filter(function(m){ return m.d===date && toMinutes(m.t)>=startM && toMinutes(m.t)<=endM; });
 
@@ -1151,11 +1357,20 @@ function updateMatchdayTracker(){
   bucketStarts.forEach(function(t){ sentAgg[t]={sum:0,n:0}; volAgg[t]=0; });
   sentMsgs.forEach(function(m){ var tm=toMinutes(m.t); var bucket=startM + Math.floor((tm-startM)/bucketSize)*bucketSize; if(sentAgg[bucket]){ sentAgg[bucket].sum+=m.s; sentAgg[bucket].n+=1; } });
   allMsgs.forEach(function(m){ var tm=toMinutes(m.t); var bucket=startM + Math.floor((tm-startM)/bucketSize)*bucketSize; if(volAgg[bucket]!==undefined) volAgg[bucket]+=1; });
-  function fmt(mins){ return String(Math.floor(mins/60)).padStart(2,'0')+':'+String(mins%60).padStart(2,'0'); }
+  function fmt(mins){ return fmtClock(mins); }
   var sentPoints=bucketStarts.map(function(t){ return {v: sentAgg[t].n ? +(sentAgg[t].sum/sentAgg[t].n).toFixed(3) : null}; });
   var bucketLabels=bucketStarts.map(fmt);
-  drawLineChart('matchdaySentCanvas', sentPoints, bucketLabels, 'No sentiment messages in selected window', bucketLabels.map(function(_,i){return i;}).filter(function(i){return i%2===0 || i===bucketLabels.length-1;}));
-  drawCountBars('matchdayVolCanvas', bucketStarts.map(function(t){return volAgg[t]||0;}), bucketLabels);
+  var actionMarkers=actions.map(function(action){
+    return {
+      index:(action.clockM-startM)/bucketSize,
+      type:action.type,
+      label:action.label,
+      minute:action.minute,
+      clock:action.clock
+    };
+  });
+  var sentRender=drawLineChart('matchdaySentCanvas', sentPoints, bucketLabels, 'No sentiment messages in selected window', bucketLabels.map(function(_,i){return i;}).filter(function(i){return i%2===0 || i===bucketLabels.length-1;}), actionMarkers);
+  drawCountBars('matchdayVolCanvas', bucketStarts.map(function(t){return volAgg[t]||0;}), bucketLabels, actionMarkers);
 
   var minuteMap={};
   for(var t=startM;t<=endM;t++) minuteMap[t]=0;
@@ -1182,7 +1397,7 @@ function updateMatchdayTracker(){
     sc('Tracked messages', allMsgs.length, '', date),
     sc('Sentiment msgs', sentMsgs.length, 'success', 'Messages with text/sentiment'),
     sc('Peak minute', peakMinute, 'danger', peakMinuteVal+' messages'),
-    sc('Latest data', new Date(latestMessageTimestamp).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}), 'warning', 'Freshness indicator in header')
+    sc('Match actions', actions.length, actions.length?'purple':'warning', actions.length ? actions.map(function(a){ return a.minute+"′="+a.clock; }).slice(0,3).join(' · ') : 'Add minute|type|label rows above')
   ].join('');
 
   var phases=[
@@ -1198,6 +1413,42 @@ function updateMatchdayTracker(){
   document.getElementById('matchdayCharged').innerHTML=charged.length ? charged.map(function(m){
     return "<div style='padding:8px 0;border-bottom:1px solid var(--border)'><div style='font-size:11px;font-weight:700;color:"+(m.s>=0?'#1a7a1a':'#c8102e')+"'>"+m.u+" · "+m.t+" · "+(m.s>0?'+':'')+m.s.toFixed(2)+"</div><div style='font-size:12px;color:var(--text-muted);margin-top:2px'>"+escapeHtml(m.x).slice(0,180)+"</div></div>";
   }).join('') : "<div style='font-size:12px;color:var(--text-muted)'>No charged messages in selected window.</div>";
+
+  var pointPostsEl=document.getElementById('matchdayPointPosts');
+  pointPostsEl.style.display='block';
+  pointPostsEl.innerHTML="<div style='font-size:12px;color:var(--text-muted)'>Click a point on the sentiment graph to view messages from that 30-minute window.</div>";
+  if(sentRender && sentRender.canvas){
+    sentRender.canvas.style.cursor='pointer';
+    sentRender.canvas.onclick=function(e){
+      if(!sentRender.points.length) return;
+      var rect=sentRender.canvas.getBoundingClientRect();
+      var mx=e.clientX-rect.left, my=e.clientY-rect.top;
+      var closest=sentRender.points.reduce(function(best,p){
+        var d=Math.hypot(mx-p.x,my-p.y);
+        return (!best || d<best.d) ? {p:p,d:d} : best;
+      },null);
+      if(!closest || closest.d>18) return;
+      var idx=closest.p.index;
+      var fromM=bucketStarts[idx];
+      var toM=Math.min(endM, fromM+bucketSize-1);
+      var rows=allMsgs.filter(function(m){
+        var tm=toMinutes(m.t);
+        return tm>=fromM && tm<=toM;
+      });
+      var actionRows=actions.filter(function(a){ return a.clockM>=fromM && a.clockM<=toM; });
+      pointPostsEl.style.display='block';
+      pointPostsEl.innerHTML=
+        "<div class='spotlight-msg-title'>Posts · "+fmt(fromM)+"-"+fmt(toM)+" ("+rows.length+")</div>"+
+        (actionRows.length ? "<div style='font-size:11px;color:var(--text-muted);margin-bottom:8px'>🎯 Events: "+actionRows.map(function(a){ return a.minute+"′ ("+a.clock+") "+escapeHtml(a.label); }).join(' · ')+"</div>" : '')+
+        (rows.length ? rows.slice(0,80).map(function(m){
+          var sentTxt=(typeof m.s==='number') ? (" · "+(m.s>0?'+':'')+m.s.toFixed(2)) : '';
+          return "<div class='spotlight-msg-item'>"+
+            "<div class='spotlight-msg-time'>"+m.t+" · "+escapeHtml(m.u||'Unknown')+sentTxt+"</div>"+
+            "<div class='spotlight-msg-text'>"+escapeHtml(m.x||'')+"</div>"+
+          "</div>";
+        }).join('') : "<div style='font-size:12px;color:var(--text-muted)'>No posts in this 30-minute window.</div>");
+    };
+  }
 }
 
 // ── SENTIMENT TAB ─────────────────────────────────────────────────────────────
