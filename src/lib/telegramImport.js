@@ -14,6 +14,19 @@ function resolvePath(preferred, fallbackRelative) {
   return fs.existsSync(preferred) ? preferred : fallbackRelative;
 }
 
+function resolveRawPath(preferredAbsolute, repoDataDir) {
+  const candidates = [
+    preferredAbsolute,
+    preferredAbsolute.replace(/result\.json$/i, 'Results.json'),
+    path.join(repoDataDir, 'result.json'),
+    path.join(repoDataDir, 'Results.json')
+  ];
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return path.join(repoDataDir, 'result.json');
+}
+
 const SWEARS = ['shit','shite','fuck','fucking','bollocks','bugger','cunt','crap','prick','cock','bastard','piss','dogshit'];
 const STOP_WORDS = new Set(['the','and','for','that','with','have','this','from','your','just','what','when','they','them','were','will','would','there','about','been','into','then','than','their','dont','you','are','its','im','ive','our','not','all','too','out','but','can','get','got','one','how','why','who','did','had','has','his','her','she','him','was','off','any','now','day','bit','still']);
 
@@ -164,7 +177,8 @@ function aggregate(rows) {
 
 function runTelegramImport(options = {}) {
   const cfg = { ...DEFAULTS, ...options };
-  cfg.rawPath = resolvePath(cfg.rawPath, path.resolve(process.cwd(), 'data/result.json'));
+  const repoDataDir = path.resolve(process.cwd(), 'data');
+  cfg.rawPath = resolveRawPath(cfg.rawPath, repoDataDir);
   cfg.enrichedPath = (cfg.enrichedPath.startsWith('/data/') && !fs.existsSync('/data')) ? path.resolve(process.cwd(), 'data/messages_enriched.json') : cfg.enrichedPath;
   cfg.statePath = (cfg.statePath.startsWith('/data/') && !fs.existsSync('/data')) ? path.resolve(process.cwd(), 'data/import_state.json') : cfg.statePath;
   const raw = readJson(cfg.rawPath, { messages: [] });
@@ -188,7 +202,7 @@ function runTelegramImport(options = {}) {
   for (const msg of processable) {
     const msgId = Number(msg.id || 0);
     const ts = Number(msg.date_unixtime || 0);
-    if (msgId <= (state.highestProcessedMessageId || 0) || ts <= (state.latestProcessedUnix || 0) || seen.has(msgId)) {
+    if (seen.has(msgId)) {
       duplicatesSkipped += 1;
       continue;
     }
