@@ -428,6 +428,9 @@ var latestMessageTimestamp = allMessageTimes.reduce(function(latest,row){
 }, '');
 var userSentByDay = {};
 var userSentCurrentDayByHour = {};
+var groupSentByHour = new Array(24).fill(null).map(function(){
+  return {sum:0,n:0,s:0};
+});
 matchdayMessages.forEach(function(row){
   if(!userSentByDay[row.u]) userSentByDay[row.u] = DAYS.map(function(){ return null; });
   if(!userSentCurrentDayByHour[row.u]) userSentCurrentDayByHour[row.u] = new Array(24).fill(null);
@@ -438,6 +441,11 @@ matchdayMessages.forEach(function(row){
     if(userSentByDay[row.u][dayIdx] === null) userSentByDay[row.u][dayIdx] = {sum:0,n:0};
     userSentByDay[row.u][dayIdx].sum += row.s;
     userSentByDay[row.u][dayIdx].n += 1;
+  }
+  var allWeekHour = parseInt(String(row.t).split(':')[0],10);
+  if(!isNaN(allWeekHour) && allWeekHour >= 0 && allWeekHour < 24){
+    groupSentByHour[allWeekHour].sum += row.s;
+    groupSentByHour[allWeekHour].n += 1;
   }
   if(row.d === '2026-04-06'){
     var hour = parseInt(String(row.t).split(':')[0],10);
@@ -453,6 +461,9 @@ Object.keys(userSentByDay).forEach(function(name){
 });
 Object.keys(userSentCurrentDayByHour).forEach(function(name){
   userSentCurrentDayByHour[name] = userSentCurrentDayByHour[name].map(function(v){ return v && v.n ? +(v.sum/v.n).toFixed(3) : null; });
+});
+groupSentByHour = groupSentByHour.map(function(v){
+  return {n:v.n,s:v.n ? +(v.sum/v.n).toFixed(3) : 0};
 });
 
 
