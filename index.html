@@ -336,10 +336,10 @@
         <div class="stats" id="sentStats"></div>
         <div class="chart-card">
           <div class="chart-title">📅 Group sentiment by day</div>
-          <canvas id="sentDayCanvas" height="140"></canvas>
+          <canvas id="sentDayCanvas" height="260"></canvas>
         </div>
         <div class="two-col">
-          <div class="chart-card"><div class="chart-title">⏰ Sentiment by hour (all week)</div><canvas id="sentHourCanvas" height="160"></canvas></div>
+          <div class="chart-card"><div class="chart-title">⏰ Sentiment by hour (all week)</div><canvas id="sentHourCanvas" height="240"></canvas></div>
           <div class="chart-card"><div class="chart-title">👑 Most positive members</div><div id="sentPosChart"></div></div>
         </div>
         <div class="chart-card"><div class="chart-title">😠 Per-member sentiment scores (min 10 msgs)</div><div id="sentMemberChart"></div></div>
@@ -1171,7 +1171,7 @@ function renderSentiment(){
     var canvas=document.getElementById('sentDayCanvas');
     if(!canvas) return;
     var W=canvas.parentElement.clientWidth-40;
-    canvas.width=W;canvas.height=140;
+    canvas.width=W;canvas.height=parseInt(canvas.getAttribute('height')||'260',10);
     var ctx=canvas.getContext('2d');
     var pad={l:40,r:20,t:16,b:28};
     var n=groupSentByDay.length;
@@ -1214,7 +1214,7 @@ function renderSentiment(){
     var canvas=document.getElementById('sentHourCanvas');
     if(!canvas) return;
     var W=canvas.parentElement.clientWidth-40;
-    canvas.width=W;canvas.height=160;
+    canvas.width=W;canvas.height=parseInt(canvas.getAttribute('height')||'240',10);
     var ctx=canvas.getContext('2d');
     var pad={l:36,r:10,t:12,b:24};
     var barW=(W-pad.l-pad.r)/24;
