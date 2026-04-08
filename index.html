@@ -493,6 +493,7 @@ var latestMessageTimestamp = allMessageTimes.reduce(function(latest,row){
 }, '');
 var totalMessages = (matchdaySummary && matchdaySummary.totalMessages) || rawMatchdayRows.length;
 var activeSenders = (matchdaySummary && matchdaySummary.activeSenders) || members.length;
+var CURRENT_MEMBER_COUNT = 62;
 var avgSentimentAll = (matchdaySummary && typeof matchdaySummary.avgSentiment === 'number') ? matchdaySummary.avgSentiment : 0;
 var userSentByDay = {};
 var userSentCurrentDayByHour = {};
@@ -1121,7 +1122,7 @@ function initSpotlightSentiment(detail){
   if(subtitleEl) subtitleEl.textContent=subtitle;
   if(headlineEl) headlineEl.textContent=totalMessages.toLocaleString('en-GB');
   document.getElementById('overviewStats').innerHTML=[
-    sc('Total Members',String(members.length),'','Current group size after removals'),
+    sc('Total Members',String(CURRENT_MEMBER_COUNT),'','Current group size after removals'),
     sc('Active Senders',String(activeSenders),'','Sent at least 1 message'),
     sc('Total Messages',totalMessages.toLocaleString('en-GB'),'','User messages in export'),
     sc('Latest Import', importMeta && importMeta.lastImportTimestamp ? new Date(importMeta.lastImportTimestamp).toLocaleString('en-GB') : '--', 'purple', 'Import timestamp'),
@@ -1345,7 +1346,7 @@ function renderSilent(){
   }).join('');
   document.getElementById('silentContent').innerHTML=
     "<div class='stats'>"+
-      sc("Current Members",String(members.length+silentMembers.length),"","Current group size after removals")+
+      sc("Current Members",String(CURRENT_MEMBER_COUNT),"","Current group size after removals")+
       sc("Posted at Least Once",String(members.filter(function(m){return m.msgs>0;}).length),"success","Members with one or more messages")+
       sc("Silent Members",""+silentMembers.length,"danger","Joined but have not posted yet")+
       sc("Low Engagers",""+lowList.length,"warning","Posted only 1–2 messages")+
