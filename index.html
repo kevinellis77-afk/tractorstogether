@@ -832,11 +832,22 @@ function drawLineChart(canvasId, points, labels, emptyText, xTickIndexes, marker
   (markers||[]).forEach(function(marker){
     if(marker.index===undefined || marker.index===null || !isFinite(marker.index)) return;
     var x=pad.l + (labels.length===1 ? chartW/2 : (marker.index/(labels.length-1))*chartW);
+    var markerText=[marker.type, marker.label].filter(Boolean).join(': ');
     ctx.strokeStyle=markerColor(marker.type);
     ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,H-pad.b+2); ctx.stroke();
     ctx.fillStyle=markerColor(marker.type);
     ctx.beginPath(); ctx.arc(x,pad.t+4,2.4,0,Math.PI*2); ctx.fill();
+    if(markerText){
+      ctx.save();
+      ctx.fillStyle=markerColor(marker.type);
+      ctx.font='9px "Source Sans 3",sans-serif';
+      ctx.textAlign='left';
+      ctx.translate(x+4,pad.t+10);
+      ctx.rotate(-Math.PI/2);
+      ctx.fillText(markerText.slice(0,40),0,0);
+      ctx.restore();
+    }
   });
 
   return {
@@ -1285,7 +1296,7 @@ function drawCountBars(canvasId, values, labels, markers){
     ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,H-pad.b+2); ctx.stroke();
   });
 }
-function drawCountLine(canvasId, values, labels){
+function drawCountLine(canvasId, values, labels, markers, startMinute, endMinute){
   var canvas=document.getElementById(canvasId);
   if(!canvas) return;
   var W=canvas.parentElement.clientWidth-40;
@@ -1317,6 +1328,17 @@ function drawCountLine(canvasId, values, labels){
   ctx.textAlign='center';
   var step=Math.max(1, Math.ceil(labels.length/10));
   labels.forEach(function(lbl,i){ if(i%step===0 || i===labels.length-1){ var x=pad.l + (labels.length===1? chartW/2 : (i/(labels.length-1))*chartW); ctx.fillText(lbl,x,H-6); } });
+  (markers||[]).forEach(function(marker){
+    if(marker.clockM===undefined || marker.clockM===null || !isFinite(marker.clockM)) return;
+    if(marker.clockM<startMinute || marker.clockM>endMinute) return;
+    var rel=(marker.clockM-startMinute)/Math.max(1,endMinute-startMinute);
+    var x=pad.l + rel*chartW;
+    ctx.strokeStyle=markerColor(marker.type);
+    ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(x,pad.t); ctx.lineTo(x,H-pad.b+2); ctx.stroke();
+    ctx.fillStyle=markerColor(marker.type);
+    ctx.beginPath(); ctx.arc(x,pad.t+5,2.4,0,Math.PI*2); ctx.fill();
+  });
 }
 
 
@@ -1350,7 +1372,8 @@ function updateMatchdayTracker(){
   var sentMsgs=matchdayMessages.filter(function(m){ return m.d===date && toMinutes(m.t)>=startM && toMinutes(m.t)<=endM; });
   var allMsgs=allMessageTimes.filter(function(m){ return m.d===date && toMinutes(m.t)>=startM && toMinutes(m.t)<=endM; });
 
-  var bucketSize=30;
+  var windowMinutes=Math.max(1,endM-startM);
+  var bucketSize=windowMinutes<180 ? 10 : 30;
   var bucketStarts=[];
   for(var t=startM;t<=endM;t+=bucketSize) bucketStarts.push(t);
   var sentAgg={}, volAgg={};
@@ -1370,14 +1393,14 @@ function updateMatchdayTracker(){
     };
   });
   var sentRender=drawLineChart('matchdaySentCanvas', sentPoints, bucketLabels, 'No sentiment messages in selected window', bucketLabels.map(function(_,i){return i;}).filter(function(i){return i%2===0 || i===bucketLabels.length-1;}), actionMarkers);
-  drawCountBars('matchdayVolCanvas', bucketStarts.map(function(t){return volAgg[t]||0;}), bucketLabels, actionMarkers);
+  drawCountBars('matchdayVolCanvas', bucketStarts.map(function(t){return volAgg[t]||0;}), bucketLabels, []);
 
   var minuteMap={};
   for(var t=startM;t<=endM;t++) minuteMap[t]=0;
   allMsgs.forEach(function(m){ var tm=toMinutes(m.t); if(minuteMap[tm]!==undefined) minuteMap[tm]+=1; });
   var minuteLabels=Object.keys(minuteMap).map(function(k){return fmt(+k);});
   var minuteValues=Object.keys(minuteMap).map(function(k){return minuteMap[k];});
-  drawCountLine('matchdayTimelineCanvas', minuteValues, minuteLabels);
+  drawCountLine('matchdayTimelineCanvas', minuteValues, minuteLabels, actionMarkers, startM, endM);
 
   var pre=allMsgs.filter(function(m){ var tm=toMinutes(m.t); return tm<kickM; });
   var ingame=allMsgs.filter(function(m){ var tm=toMinutes(m.t); return tm>=kickM && tm<Math.min(endM,kickM+120); });
@@ -1392,7 +1415,7 @@ function updateMatchdayTracker(){
   minuteValues.forEach(function(v,i){ if(v>peakMinuteVal){ peakMinuteVal=v; peakMinuteIdx=i; } });
   var peakMinute = minuteLabels[peakMinuteIdx] || start;
 
-  document.getElementById('matchdaySentTitle').textContent='📈 '+fixture+' sentiment by 30-minute window';
+  document.getElementById('matchdaySentTitle').textContent='📈 '+fixture+' sentiment by '+bucketSize+'-minute window';
   document.getElementById('matchdayStats').innerHTML=[
     sc('Tracked messages', allMsgs.length, '', date),
     sc('Sentiment msgs', sentMsgs.length, 'success', 'Messages with text/sentiment'),
@@ -1416,7 +1439,7 @@ function updateMatchdayTracker(){
 
   var pointPostsEl=document.getElementById('matchdayPointPosts');
   pointPostsEl.style.display='block';
-  pointPostsEl.innerHTML="<div style='font-size:12px;color:var(--text-muted)'>Click a point on the sentiment graph to view messages from that 30-minute window.</div>";
+  pointPostsEl.innerHTML="<div style='font-size:12px;color:var(--text-muted)'>Click a point on the sentiment graph to view messages from that "+bucketSize+"-minute window.</div>";
   if(sentRender && sentRender.canvas){
     sentRender.canvas.style.cursor='pointer';
     sentRender.canvas.onclick=function(e){
@@ -1435,18 +1458,32 @@ function updateMatchdayTracker(){
         var tm=toMinutes(m.t);
         return tm>=fromM && tm<=toM;
       });
+      var detailByTime={};
+      sentMsgs.forEach(function(m){
+        var key=m.d+'|'+m.t;
+        if(!detailByTime[key]) detailByTime[key]=[];
+        detailByTime[key].push(m);
+      });
+      var detailCursor={};
       var actionRows=actions.filter(function(a){ return a.clockM>=fromM && a.clockM<=toM; });
       pointPostsEl.style.display='block';
       pointPostsEl.innerHTML=
         "<div class='spotlight-msg-title'>Posts · "+fmt(fromM)+"-"+fmt(toM)+" ("+rows.length+")</div>"+
         (actionRows.length ? "<div style='font-size:11px;color:var(--text-muted);margin-bottom:8px'>🎯 Events: "+actionRows.map(function(a){ return a.minute+"′ ("+a.clock+") "+escapeHtml(a.label); }).join(' · ')+"</div>" : '')+
         (rows.length ? rows.slice(0,80).map(function(m){
-          var sentTxt=(typeof m.s==='number') ? (" · "+(m.s>0?'+':'')+m.s.toFixed(2)) : '';
+          var key=m.d+'|'+m.t;
+          var list=detailByTime[key]||[];
+          var idx=detailCursor[key]||0;
+          var detail=list[idx]||null;
+          if(detail) detailCursor[key]=idx+1;
+          var sentTxt=(detail && typeof detail.s==='number') ? (" · "+(detail.s>0?'+':'')+detail.s.toFixed(2)) : '';
+          var displayUser=(detail && detail.u) ? detail.u : (m.u || 'Unknown (volume-only record)');
+          var displayText=(detail && detail.x) ? detail.x : (m.x || '[No message text available in this dataset]');
           return "<div class='spotlight-msg-item'>"+
-            "<div class='spotlight-msg-time'>"+m.t+" · "+escapeHtml(m.u||'Unknown')+sentTxt+"</div>"+
-            "<div class='spotlight-msg-text'>"+escapeHtml(m.x||'')+"</div>"+
+            "<div class='spotlight-msg-time'>"+m.t+" · "+escapeHtml(displayUser)+sentTxt+"</div>"+
+            "<div class='spotlight-msg-text'>"+escapeHtml(displayText)+"</div>"+
           "</div>";
-        }).join('') : "<div style='font-size:12px;color:var(--text-muted)'>No posts in this 30-minute window.</div>");
+        }).join('') : "<div style='font-size:12px;color:var(--text-muted)'>No posts in this "+bucketSize+"-minute window.</div>");
     };
   }
 }
