@@ -18,8 +18,12 @@ function resolveRawPath(preferredAbsolute, repoDataDir) {
   const candidates = [
     preferredAbsolute,
     preferredAbsolute.replace(/result\.json$/i, 'Results.json'),
+    preferredAbsolute.replace(/result\.json$/i, 'results.json'),
+    preferredAbsolute.replace(/result\.json$/i, 'RESULTS.json'),
     path.join(repoDataDir, 'result.json'),
-    path.join(repoDataDir, 'Results.json')
+    path.join(repoDataDir, 'Results.json'),
+    path.join(repoDataDir, 'results.json'),
+    path.join(repoDataDir, 'RESULTS.json')
   ];
   for (const candidate of candidates) {
     if (fs.existsSync(candidate)) return candidate;
