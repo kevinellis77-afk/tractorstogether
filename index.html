@@ -246,7 +246,7 @@
           </div>
         </div>
         <div class="stats" id="overviewStats"></div>
-        <div class="info-bar">📈 <strong>Peak day: Friday 3 Apr</strong> with 404 messages — the busiest day in this export.</div>
+        <div class="info-bar" id="peakDaySummary">📈 <strong>Peak day:</strong> --</div>
         <div class="day-tiles" id="dayTiles"></div>
         <div class="two-col">
           <div class="chart-card"><div class="chart-title">⏰ Messages by hour of day</div><canvas id="hourCanvas" height="160"></canvas></div>
@@ -438,6 +438,7 @@ var topWords = [{"word":"think","count":174},{"word":"game","count":170},{"word"
 var reactionEmojis = [{"e":"😁","c":773},{"e":"👍","c":759},{"e":"🤣","c":540},{"e":"❤","c":232},{"e":"🔥","c":212},{"e":"💯","c":188},{"e":"👏","c":118},{"e":"🙏","c":51},{"e":"😱","c":47},{"e":"🥴","c":40},{"e":"🙈","c":31},{"e":"👀","c":22},{"e":"🤡","c":21},{"e":"🤯","c":12},{"e":"💩","c":10},{"e":"🤮","c":9},{"e":"🥰","c":6},{"e":"🤔","c":6},{"e":"😭","c":5},{"e":"🦄","c":5},{"e":"🎉","c":5},{"e":"🌚","c":4},{"e":"🌭","c":4},{"e":"🤝","c":4},{"e":"👎","c":4},{"e":"😢","c":3},{"e":"🐳","c":3},{"e":"🍌","c":3},{"e":"🫡","c":3},{"e":"❤‍🔥","c":3},{"e":"✍","c":2},{"e":"🤷‍♂","c":2},{"e":"💅","c":2},{"e":"🆒","c":2},{"e":"🤨","c":2},{"e":"🍾","c":2},{"e":"🙊","c":2},{"e":"😇","c":1},{"e":"🤓","c":1},{"e":"🖕","c":1},{"e":"🍓","c":1},{"e":"👌","c":1},{"e":"🕊","c":1},{"e":"🗿","c":1},{"e":"💘","c":1},{"e":"💊","c":1},{"e":"😎","c":1},{"e":"🤪","c":1},{"e":"🤩","c":1},{"e":"😨","c":1},{"e":"🤷‍♀","c":1},{"e":"👨‍💻","c":1},{"e":"⚡","c":1},{"e":"😍","c":1},{"e":"🏆","c":1}];
 var importMeta = null;
 var importedSummary = null;
+var silentMembersSeed = [{"name": "Andy Bantock", "join_date": "2026-04-01T00:00:00"}, {"name": "Chris Kerry", "join_date": "2026-04-01T00:00:00"}, {"name": "Ed Seaton", "join_date": "2026-04-01T00:00:00"}, {"name": "Henry Levell", "join_date": "2026-04-01T00:00:00"}, {"name": "Iain Mackie", "join_date": "2026-04-01T00:00:00"}, {"name": "James Williment", "join_date": "2026-04-01T00:00:00"}, {"name": "Jason P", "join_date": "2026-04-01T00:00:00"}, {"name": "Jim Elmy", "join_date": "2026-04-01T00:00:00"}, {"name": "Jonathan", "join_date": "2026-04-01T00:00:00"}, {"name": "Matty", "join_date": "2026-04-01T00:00:00"}, {"name": "Mauricio", "join_date": "2026-04-01T00:00:00"}, {"name": "Peiter Hurt", "join_date": "2026-04-01T00:00:00"}, {"name": "Richard Jackson", "join_date": "2026-04-01T00:00:00"}, {"name": "Robin B", "join_date": "2026-04-01T00:00:00"}, {"name": "Russell Carroll", "join_date": "2026-04-01T00:00:00"}, {"name": "Shaun Calvert", "join_date": "2026-04-01T00:00:00"}];
 
 // Try enriched dataset first, fallback to embedded sample data.
 (function loadEnrichedDataset(){
@@ -490,10 +491,27 @@ var latestMessageTimestamp = allMessageTimes.reduce(function(latest,row){
   var iso = row.d + 'T' + row.t + ':00';
   return (!latest || iso > latest) ? iso : latest;
 }, '');
-var effectiveSummary = importedSummary || matchdaySummary || null;
+var effectiveSummary = (function(){
+  if(importedSummary && matchdaySummary){
+    return {
+      totalMessages: Math.max(importedSummary.totalMessages || 0, matchdaySummary.totalMessages || 0),
+      activeSenders: Math.max(importedSummary.activeSenders || 0, matchdaySummary.activeSenders || 0),
+      totalMembers: Math.max(importedSummary.totalMembers || 0, matchdaySummary.totalMembers || 0),
+      avgSentiment: (typeof importedSummary.avgSentiment === 'number') ? importedSummary.avgSentiment : matchdaySummary.avgSentiment
+    };
+  }
+  return importedSummary || matchdaySummary || null;
+})();
 var totalMessages = (effectiveSummary && effectiveSummary.totalMessages) || rawMatchdayRows.length;
-var activeSenders = (effectiveSummary && effectiveSummary.activeSenders) || members.length;
-var CURRENT_MEMBER_COUNT = (effectiveSummary && effectiveSummary.totalMembers) || members.length;
+var activeSenders = Math.max((effectiveSummary && effectiveSummary.activeSenders) || 0, members.length);
+function normName(name){
+  return String(name || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
+}
+var postedMemberNames = new Set(members.map(function(m){ return normName(m.name); }));
+var silentMembers = silentMembersSeed.filter(function(m){
+  return !postedMemberNames.has(normName(m.name));
+});
+var CURRENT_MEMBER_COUNT = Math.max((effectiveSummary && effectiveSummary.totalMembers) || 0, activeSenders + silentMembers.length, members.length);
 var avgSentimentAll = (effectiveSummary && typeof effectiveSummary.avgSentiment === 'number') ? effectiveSummary.avgSentiment : 0;
 var userSentByDay = {};
 var userSentCurrentDayByHour = {};
@@ -1132,16 +1150,24 @@ function initSpotlightSentiment(detail){
 
   var maxDay=Math.max.apply(null,dayActivity.map(function(d){return d.count;}));
   var sortedByDate=dayActivity.slice().sort(function(a,b){return a.date.localeCompare(b.date);});
-  document.getElementById('dayTiles').innerHTML=sortedByDate.map(function(d){
-    var isPeak=d.count===maxDay;
-    var dayName=formatLocalDate(d.date,{weekday:'short'});
-    var dayNum=formatLocalDate(d.date,{day:'numeric',month:'short'});
-    return "<div class='day-tile"+(isPeak?' peak':'')+"'>"+
+  var peakDay = sortedByDate.reduce(function(best,day){
+    return !best || day.count > best.count ? day : best;
+  }, null);
+  var peakSummaryEl=document.getElementById('peakDaySummary');
+  if(peakSummaryEl && peakDay){
+    var peakWeekday = formatLocalDate(peakDay.date,{weekday:'long'});
+    var peakDate = formatLocalDate(peakDay.date,{day:'numeric',month:'short'});
+    peakSummaryEl.innerHTML = "📈 <strong>Peak day: "+peakWeekday+" "+peakDate+"</strong> with "+peakDay.count+" messages — the busiest day in this export.";
+  }
+  document.getElementById('dayTiles').innerHTML = peakDay ? (function(){
+    var dayName=formatLocalDate(peakDay.date,{weekday:'short'});
+    var dayNum=formatLocalDate(peakDay.date,{day:'numeric',month:'short'});
+    return "<div class='day-tile peak'>"+
       "<div class='dt'>"+dayName+"</div><div class='dt' style='font-size:9px;margin-bottom:4px'>"+dayNum+"</div>"+
-      "<div class='dv'>"+d.count+"</div><div class='dt'>msgs</div>"+
-      (isPeak?"<div style='font-size:9px;margin-top:4px;color:#c89000'>🏆 Peak</div>":"")+
+      "<div class='dv'>"+peakDay.count+"</div><div class='dt'>msgs</div>"+
+      "<div style='font-size:9px;margin-top:4px;color:#c89000'>🏆 Peak</div>"+
     "</div>";
-  }).join('');
+  })() : "";
 
   setTimeout(function(){drawHourChart();},80);
 
@@ -1328,7 +1354,6 @@ function renderEngagement(){
 // ── SILENT ───────────────────────────────────────────────────────────────────
 function renderSilent(){
   var lowList=members.filter(function(m){return m.msgs>0 && m.msgs<=2;}).sort(function(a,b){return a.msgs-b.msgs || a.name.localeCompare(b.name);});
-  var silentMembers = [{"name": "Andy Bantock", "join_date": "2026-04-01T00:00:00"}, {"name": "Chris Kerry", "join_date": "2026-04-01T00:00:00"}, {"name": "Ed Seaton", "join_date": "2026-04-01T00:00:00"}, {"name": "Henry Levell", "join_date": "2026-04-01T00:00:00"}, {"name": "Iain Mackie", "join_date": "2026-04-01T00:00:00"}, {"name": "James Williment", "join_date": "2026-04-01T00:00:00"}, {"name": "Jason P", "join_date": "2026-04-01T00:00:00"}, {"name": "Jim Elmy", "join_date": "2026-04-01T00:00:00"}, {"name": "Jonathan", "join_date": "2026-04-01T00:00:00"}, {"name": "Matty", "join_date": "2026-04-01T00:00:00"}, {"name": "Mauricio", "join_date": "2026-04-01T00:00:00"}, {"name": "Peiter Hurt", "join_date": "2026-04-01T00:00:00"}, {"name": "Richard Jackson", "join_date": "2026-04-01T00:00:00"}, {"name": "Robin B", "join_date": "2026-04-01T00:00:00"}, {"name": "Russell Carroll", "join_date": "2026-04-01T00:00:00"}, {"name": "Shaun Calvert", "join_date": "2026-04-01T00:00:00"}];
   var latestExportDate=new Date((DAYS[DAYS.length-1]||'2026-04-06')+'T23:59:59');
   function fmtDate(iso){
     var d=new Date(iso);

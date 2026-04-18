@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
-  "generatedAt": "2026-04-18T08:30:27.599Z",
+  "generatedAt": "2026-04-18T08:55:08.717Z",
   "importStats": {
     "totalProcessedMessages": 5192,
-    "lastImportTimestamp": "2026-04-18T08:30:27.599Z",
+    "lastImportTimestamp": "2026-04-18T08:55:08.717Z",
     "newMessagesProcessed": 5192,
     "duplicatesSkipped": 0,
     "rawMessageCount": 5491,
@@ -59,7 +59,7 @@
   "summary": {
     "totalMessages": 5192,
     "activeSenders": 60,
-    "totalMembers": 60,
+    "totalMembers": 71,
     "avgSentiment": 0.031
   },
   "aggregates": {

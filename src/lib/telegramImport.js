@@ -190,6 +190,33 @@ function aggregate(rows) {
   };
 }
 
+function estimateTotalMembers(rawMessages, activeSenders) {
+  const activeNames = new Set();
+  for (const msg of rawMessages) {
+    if (msg && msg.type === 'message' && typeof msg.from === 'string' && msg.from.trim()) {
+      activeNames.add(msg.from.trim());
+    }
+  }
+
+  const knownMembers = new Set(activeNames);
+  for (const msg of rawMessages) {
+    if (!msg || msg.type !== 'service') continue;
+    if (typeof msg.actor === 'string' && msg.actor.trim()) knownMembers.add(msg.actor.trim());
+    if (Array.isArray(msg.members)) {
+      for (const memberName of msg.members) {
+        if (typeof memberName === 'string' && memberName.trim()) knownMembers.add(memberName.trim());
+      }
+    }
+  }
+  for (const msg of rawMessages) {
+    if (!msg || msg.type !== 'service' || msg.action !== 'remove_members' || !Array.isArray(msg.members)) continue;
+    for (const memberName of msg.members) {
+      if (typeof memberName === 'string' && memberName.trim()) knownMembers.delete(memberName.trim());
+    }
+  }
+  return Math.max(activeSenders, knownMembers.size);
+}
+
 function runTelegramImport(options = {}) {
   const cfg = { ...DEFAULTS, ...options };
   const repoDataDir = path.resolve(process.cwd(), 'data');
@@ -238,7 +265,7 @@ function runTelegramImport(options = {}) {
     summary: {
       totalMessages: merged.length,
       activeSenders: agg.members.length,
-      totalMembers: agg.members.length,
+      totalMembers: estimateTotalMembers(rawMessages, agg.members.length),
       avgSentiment: agg.avgSentiment
     },
     aggregates: agg,
