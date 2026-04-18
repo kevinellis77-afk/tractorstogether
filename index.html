@@ -509,8 +509,12 @@ var activeSenders = Math.max((effectiveSummary && effectiveSummary.activeSenders
 function normName(name){
   return String(name || '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu,' ').trim();
 }
+var REMOVED_MEMBER_NAMES = ['Simon Fisher','Martin Talbot'];
+var REMOVED_MEMBER_COUNT = REMOVED_MEMBER_NAMES.length;
+var removedMemberKeySet = new Set(REMOVED_MEMBER_NAMES.map(function(name){ return normName(name); }));
 var postedMemberNames = new Set(members.map(function(m){ return normName(m.name); }));
 var silentMembers = silentMembersSeed.filter(function(m){
+  if(removedMemberKeySet.has(normName(m.name))) return false;
   return !postedMemberNames.has(normName(m.name));
 });
 var reactorStatsByName = (function(){
@@ -554,13 +558,13 @@ silentMembers = silentMembers.map(function(m){
     topEmojiCount: topEmojiCount
   };
 });
-var CURRENT_MEMBER_COUNT = Math.max((effectiveSummary && effectiveSummary.totalMembers) || 0, activeSenders + silentMembers.length, members.length);
-var REMOVED_MEMBER_NAMES = ['Simon Fisher','Martin Talbot'];
-var REMOVED_MEMBER_COUNT = REMOVED_MEMBER_NAMES.length;
+var activeMembers = members.filter(function(m){
+  return !removedMemberKeySet.has(normName(m.name));
+});
 var CURRENT_MEMBER_COUNT = Math.max(
   ((effectiveSummary && effectiveSummary.totalMembers) || 0) - REMOVED_MEMBER_COUNT,
   activeSenders + silentMembers.length,
-  members.length - REMOVED_MEMBER_COUNT
+  activeMembers.length
 );
 var UNIQUE_MEMBERS_EVER = CURRENT_MEMBER_COUNT + REMOVED_MEMBER_COUNT;
 var avgSentimentAll = (effectiveSummary && typeof effectiveSummary.avgSentiment === 'number') ? effectiveSummary.avgSentiment : 0;
