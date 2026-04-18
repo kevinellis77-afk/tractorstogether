@@ -438,6 +438,7 @@ var topWords = [{"word":"think","count":174},{"word":"game","count":170},{"word"
 var reactionEmojis = [{"e":"😁","c":773},{"e":"👍","c":759},{"e":"🤣","c":540},{"e":"❤","c":232},{"e":"🔥","c":212},{"e":"💯","c":188},{"e":"👏","c":118},{"e":"🙏","c":51},{"e":"😱","c":47},{"e":"🥴","c":40},{"e":"🙈","c":31},{"e":"👀","c":22},{"e":"🤡","c":21},{"e":"🤯","c":12},{"e":"💩","c":10},{"e":"🤮","c":9},{"e":"🥰","c":6},{"e":"🤔","c":6},{"e":"😭","c":5},{"e":"🦄","c":5},{"e":"🎉","c":5},{"e":"🌚","c":4},{"e":"🌭","c":4},{"e":"🤝","c":4},{"e":"👎","c":4},{"e":"😢","c":3},{"e":"🐳","c":3},{"e":"🍌","c":3},{"e":"🫡","c":3},{"e":"❤‍🔥","c":3},{"e":"✍","c":2},{"e":"🤷‍♂","c":2},{"e":"💅","c":2},{"e":"🆒","c":2},{"e":"🤨","c":2},{"e":"🍾","c":2},{"e":"🙊","c":2},{"e":"😇","c":1},{"e":"🤓","c":1},{"e":"🖕","c":1},{"e":"🍓","c":1},{"e":"👌","c":1},{"e":"🕊","c":1},{"e":"🗿","c":1},{"e":"💘","c":1},{"e":"💊","c":1},{"e":"😎","c":1},{"e":"🤪","c":1},{"e":"🤩","c":1},{"e":"😨","c":1},{"e":"🤷‍♀","c":1},{"e":"👨‍💻","c":1},{"e":"⚡","c":1},{"e":"😍","c":1},{"e":"🏆","c":1}];
 var importMeta = null;
 var importedSummary = null;
+var importedRowsWithReactions = [];
 var silentMembersSeed = [{"name": "Andy Bantock", "join_date": "2026-04-01T00:00:00"}, {"name": "Chris Kerry", "join_date": "2026-04-01T00:00:00"}, {"name": "Ed Seaton", "join_date": "2026-04-01T00:00:00"}, {"name": "Henry Levell", "join_date": "2026-04-01T00:00:00"}, {"name": "Iain Mackie", "join_date": "2026-04-01T00:00:00"}, {"name": "James Williment", "join_date": "2026-04-01T00:00:00"}, {"name": "Jason P", "join_date": "2026-04-01T00:00:00"}, {"name": "Jim Elmy", "join_date": "2026-04-01T00:00:00"}, {"name": "Jonathan", "join_date": "2026-04-01T00:00:00"}, {"name": "Matty", "join_date": "2026-04-01T00:00:00"}, {"name": "Mauricio", "join_date": "2026-04-01T00:00:00"}, {"name": "Peiter Hurt", "join_date": "2026-04-01T00:00:00"}, {"name": "Richard Jackson", "join_date": "2026-04-01T00:00:00"}, {"name": "Robin B", "join_date": "2026-04-01T00:00:00"}, {"name": "Russell Carroll", "join_date": "2026-04-01T00:00:00"}, {"name": "Shaun Calvert", "join_date": "2026-04-01T00:00:00"}];
 
 // Try enriched dataset first, fallback to embedded sample data.
@@ -450,6 +451,7 @@ var silentMembersSeed = [{"name": "Andy Bantock", "join_date": "2026-04-01T00:00
     var parsed = JSON.parse(req.responseText);
     var rows = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.messages) ? parsed.messages : null);
     if (!rows || !rows.length) return;
+    importedRowsWithReactions = rows.slice();
     matchdayMessages = rows.map(function(m){
       return { d: m.d, t: m.t, u: m.u, s: typeof m.s === 'number' ? m.s : (typeof m.sentimentScore === 'number' ? m.sentimentScore : 0), x: m.x || '' };
     });
@@ -510,6 +512,47 @@ function normName(name){
 var postedMemberNames = new Set(members.map(function(m){ return normName(m.name); }));
 var silentMembers = silentMembersSeed.filter(function(m){
   return !postedMemberNames.has(normName(m.name));
+});
+var reactorStatsByName = (function(){
+  var byReactor = new Map();
+  importedRowsWithReactions.forEach(function(row){
+    (row.reactions || []).forEach(function(reaction){
+      (reaction.recent || []).forEach(function(actor){
+        var key = normName(actor && actor.from);
+        if(!key) return;
+        if(!byReactor.has(key)){
+          byReactor.set(key,{total:0,emojiCounts:new Map()});
+        }
+        var stats = byReactor.get(key);
+        stats.total += 1;
+        var emoji = reaction.emoji || '';
+        if(emoji){
+          stats.emojiCounts.set(emoji,(stats.emojiCounts.get(emoji) || 0) + 1);
+        }
+      });
+    });
+  });
+  return byReactor;
+})();
+silentMembers = silentMembers.map(function(m){
+  var stats = reactorStatsByName.get(normName(m.name));
+  var topEmoji = '';
+  var topEmojiCount = 0;
+  if(stats && stats.emojiCounts){
+    stats.emojiCounts.forEach(function(count,emoji){
+      if(count > topEmojiCount){
+        topEmoji = emoji;
+        topEmojiCount = count;
+      }
+    });
+  }
+  return {
+    name: m.name,
+    join_date: m.join_date,
+    reactionCount: stats ? stats.total : 0,
+    topEmoji: topEmoji,
+    topEmojiCount: topEmojiCount
+  };
 });
 var CURRENT_MEMBER_COUNT = Math.max((effectiveSummary && effectiveSummary.totalMembers) || 0, activeSenders + silentMembers.length, members.length);
 var REMOVED_MEMBER_NAMES = ['Simon Fisher','Martin Talbot'];
@@ -1368,12 +1411,17 @@ function renderSilent(){
     return Math.max(0, Math.floor((latestExportDate - new Date(iso))/(1000*60*60*24)));
   }
   var silentRows=silentMembers.map(function(m,i){
+    var reactionSummary = m.reactionCount > 0
+      ? ("<span class='badge badge-mid'>"+m.reactionCount+" emoji reaction"+(m.reactionCount===1?'':'s')+"</span>"+(m.topEmoji ? (" <span style='font-size:12px;color:var(--text-muted)'>Top: "+m.topEmoji+" ×"+m.topEmojiCount+"</span>") : ''))
+      : "<span class='badge badge-low'>No reactions</span>";
     return "<tr><td class='rank-cell'>"+(i+1)+"</td>"+
       "<td style='font-weight:500'>"+m.name+"</td>"+
       "<td>"+fmtDate(m.join_date)+"</td>"+
       "<td class='num'>"+daysSilent(m.join_date)+"</td>"+
-      "<td><span class='badge badge-low'>Never posted</span></td></tr>";
+      "<td><span class='badge badge-low'>Never posted</span></td>"+
+      "<td>"+reactionSummary+"</td></tr>";
   }).join('');
+  var silentReactorsCount = silentMembers.filter(function(m){return m.reactionCount>0;}).length;
   document.getElementById('silentContent').innerHTML=
     "<div class='stats'>"+
       sc("Current Members",String(CURRENT_MEMBER_COUNT),"","Current group size after removals")+
@@ -1381,11 +1429,12 @@ function renderSilent(){
       sc("Removed Members",String(REMOVED_MEMBER_COUNT),"danger",REMOVED_MEMBER_NAMES.join(' & ')+' removed from group')+
       sc("Posted at Least Once",String(members.filter(function(m){return m.msgs>0;}).length),"success","Members with one or more messages")+
       sc("Silent Members",""+silentMembers.length,"danger","Joined but have not posted yet")+
+      sc("Silent Reactors",""+silentReactorsCount,"purple","Silent members who used emoji reactions")+
       sc("Low Engagers",""+lowList.length,"warning","Posted only 1–2 messages")+
     "</div>"+
     "<div style='margin:6px 0 10px;color:var(--text-muted);font-size:12px'>📝 Member totals now auto-sync from the latest import.</div>"+
     "<div class='section-title' style='margin-top:4px'>Silent members (never posted)</div>"+
-    "<div class='table-wrap'><table><thead><tr><th>#</th><th>Member</th><th>Joined</th><th class='num'>Days Since Joined</th><th>Status</th></tr></thead><tbody>"+
+    "<div class='table-wrap'><table><thead><tr><th>#</th><th>Member</th><th>Joined</th><th class='num'>Days Since Joined</th><th>Status</th><th>Emoji Reactions</th></tr></thead><tbody>"+
     silentRows+"</tbody></table></div>"+
     "<div class='section-title' style='margin-top:18px'>Low engagers (1–2 messages)</div>"+
     "<div class='table-wrap'><table><thead><tr><th>#</th><th>Member</th><th class='num'>Messages</th><th class='num'>Reactions</th></tr></thead><tbody>"+
