@@ -25,9 +25,20 @@ function resolveRawPath(preferredAbsolute, repoDataDir) {
     path.join(repoDataDir, 'results.json'),
     path.join(repoDataDir, 'RESULTS.json')
   ];
-  for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
-  }
+  const existing = candidates
+    .filter((candidate) => fs.existsSync(candidate))
+    .map((candidate) => {
+      let mtimeMs = 0;
+      try {
+        mtimeMs = fs.statSync(candidate).mtimeMs || 0;
+      } catch (_) {
+        mtimeMs = 0;
+      }
+      return { candidate, mtimeMs };
+    })
+    .sort((a, b) => b.mtimeMs - a.mtimeMs);
+
+  if (existing.length) return existing[0].candidate;
   return path.join(repoDataDir, 'result.json');
 }
 
