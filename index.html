@@ -511,9 +511,13 @@ var postedMemberNames = new Set(members.map(function(m){ return normName(m.name)
 var silentMembers = silentMembersSeed.filter(function(m){
   return !postedMemberNames.has(normName(m.name));
 });
-var CURRENT_MEMBER_COUNT = Math.max((effectiveSummary && effectiveSummary.totalMembers) || 0, activeSenders + silentMembers.length, members.length);
 var REMOVED_MEMBER_NAMES = ['Simon Fisher','Martin Talbot'];
 var REMOVED_MEMBER_COUNT = REMOVED_MEMBER_NAMES.length;
+var CURRENT_MEMBER_COUNT = Math.max(
+  ((effectiveSummary && effectiveSummary.totalMembers) || 0) - REMOVED_MEMBER_COUNT,
+  activeSenders + silentMembers.length,
+  members.length - REMOVED_MEMBER_COUNT
+);
 var UNIQUE_MEMBERS_EVER = CURRENT_MEMBER_COUNT + REMOVED_MEMBER_COUNT;
 var avgSentimentAll = (effectiveSummary && typeof effectiveSummary.avgSentiment === 'number') ? effectiveSummary.avgSentiment : 0;
 var userSentByDay = {};
@@ -1144,7 +1148,7 @@ function initSpotlightSentiment(detail){
   if(headlineEl) headlineEl.textContent=totalMessages.toLocaleString('en-GB');
   document.getElementById('overviewStats').innerHTML=[
     sc('Current Members',String(CURRENT_MEMBER_COUNT),'','Current group size after removals'),
-    sc('Unique Members Ever',String(UNIQUE_MEMBERS_EVER),'','71 unique members have entered the group'),
+    sc('Unique Members Ever',String(UNIQUE_MEMBERS_EVER),'',String(UNIQUE_MEMBERS_EVER)+' unique members have entered the group'),
     sc('Removed Members',String(REMOVED_MEMBER_COUNT),'danger',REMOVED_MEMBER_NAMES.join(' & ')+' removed from group'),
     sc('Active Senders',String(activeSenders),'','Sent at least 1 message'),
     sc('Total Messages',totalMessages.toLocaleString('en-GB'),'','User messages in export'),
@@ -1377,7 +1381,7 @@ function renderSilent(){
   document.getElementById('silentContent').innerHTML=
     "<div class='stats'>"+
       sc("Current Members",String(CURRENT_MEMBER_COUNT),"","Current group size after removals")+
-      sc("Unique Members Ever",String(UNIQUE_MEMBERS_EVER),"","71 unique members have entered the group")+
+      sc("Unique Members Ever",String(UNIQUE_MEMBERS_EVER),"",String(UNIQUE_MEMBERS_EVER)+" unique members have entered the group")+
       sc("Removed Members",String(REMOVED_MEMBER_COUNT),"danger",REMOVED_MEMBER_NAMES.join(' & ')+' removed from group')+
       sc("Posted at Least Once",String(members.filter(function(m){return m.msgs>0;}).length),"success","Members with one or more messages")+
       sc("Silent Members",""+silentMembers.length,"danger","Joined but have not posted yet")+
