@@ -561,11 +561,9 @@ silentMembers = silentMembers.map(function(m){
 var activeMembers = members.filter(function(m){
   return !removedMemberKeySet.has(normName(m.name));
 });
-var CURRENT_MEMBER_COUNT = Math.max(
-  ((effectiveSummary && effectiveSummary.totalMembers) || 0) - REMOVED_MEMBER_COUNT,
-  activeSenders + silentMembers.length,
-  activeMembers.length
-);
+var inferredCurrentMembers = activeMembers.length + silentMembers.length;
+var summaryCurrentMembers = (effectiveSummary && effectiveSummary.totalMembers) || 0;
+var CURRENT_MEMBER_COUNT = Math.max(summaryCurrentMembers, inferredCurrentMembers);
 var UNIQUE_MEMBERS_EVER = CURRENT_MEMBER_COUNT + REMOVED_MEMBER_COUNT;
 var avgSentimentAll = (effectiveSummary && typeof effectiveSummary.avgSentiment === 'number') ? effectiveSummary.avgSentiment : 0;
 var userSentByDay = {};
