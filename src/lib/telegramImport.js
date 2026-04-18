@@ -197,26 +197,16 @@ function runTelegramImport(options = {}) {
   cfg.enrichedPath = (cfg.enrichedPath.startsWith('/data/') && !fs.existsSync('/data')) ? path.resolve(process.cwd(), 'data/messages_enriched.json') : cfg.enrichedPath;
   cfg.statePath = (cfg.statePath.startsWith('/data/') && !fs.existsSync('/data')) ? path.resolve(process.cwd(), 'data/import_state.json') : cfg.statePath;
   const raw = readJson(cfg.rawPath, { messages: [] });
-  const state = readJson(cfg.statePath, {
-    highestProcessedMessageId: 0,
-    latestProcessedUnix: 0,
-    lastImportTimestamp: null,
-    latestRunNewMessages: 0
-  });
-  const existing = readJson(cfg.enrichedPath, { messages: [] });
-  const existingMessages = Array.isArray(existing.messages) ? existing.messages : [];
-  const seen = new Set(existingMessages.map((m) => m.id));
-
   const rawMessages = Array.isArray(raw.messages) ? raw.messages : [];
   const processable = rawMessages.filter(isProcessableMessage);
 
   let newRows = 0;
   let duplicatesSkipped = 0;
-  const merged = [...existingMessages];
+  const seen = new Set();
+  const merged = [];
 
   for (const msg of processable) {
     const msgId = Number(msg.id || 0);
-    const ts = Number(msg.date_unixtime || 0);
     if (seen.has(msgId)) {
       duplicatesSkipped += 1;
       continue;
@@ -258,8 +248,8 @@ function runTelegramImport(options = {}) {
   writeJson(cfg.enrichedPath, output);
 
   const nextState = {
-    highestProcessedMessageId: Math.max(state.highestProcessedMessageId || 0, latest ? latest.id : 0),
-    latestProcessedUnix: Math.max(state.latestProcessedUnix || 0, latest ? latest.unix : 0),
+    highestProcessedMessageId: latest ? latest.id : 0,
+    latestProcessedUnix: latest ? latest.unix : 0,
     lastImportTimestamp: now,
     latestRunNewMessages: newRows
   };
