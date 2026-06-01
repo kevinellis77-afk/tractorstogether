@@ -14,11 +14,11 @@
     nav{position:relative;z-index:1;background:rgba(6,29,59,.46);border-top:1px solid rgba(255,255,255,.18);box-shadow:0 -16px 34px rgba(6,29,59,.22),inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(16px)}.tabs{display:flex;gap:8px;overflow:auto;padding:12px 18px}.tabBtn{appearance:none;border:1px solid rgba(255,255,255,.22);background:rgba(255,255,255,.10);color:#fff;border-radius:12px;padding:11px 15px;font-weight:900;cursor:pointer;white-space:nowrap}.tabBtn.active{background:#fff;color:var(--blue);border-color:#fff;box-shadow:0 10px 24px rgba(0,0,0,.18)}.tabBtn .count{opacity:.72;margin-left:4px}
     main{padding:22px 18px 50px}.tabPanel{display:none}.tabPanel.active{display:block}.card{background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow);border-radius:var(--radius);padding:18px}.sectionHead{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;margin-bottom:16px}h2{margin:0;font-size:1.2rem;letter-spacing:-.025em}.help{color:var(--muted);font-size:.88rem;line-height:1.45;margin-top:4px}.btnRow{display:flex;flex-wrap:wrap;gap:9px}button,.fileBtn{border:0;border-radius:12px;padding:10px 13px;font-weight:900;cursor:pointer;background:var(--blue);color:#fff;font-size:.9rem;text-decoration:none;display:inline-flex;align-items:center;justify-content:center}.secondary,.fileBtn{background:#e9eff7;color:var(--blue)}.danger{background:var(--bad)}.ghost{background:#fff;color:var(--blue);border:1px solid var(--line)}input[type=file]{display:none}
     .kpiGrid{display:grid;grid-template-columns:repeat(6,1fr);gap:14px;margin-bottom:18px}.kpi{position:relative;overflow:hidden;padding:17px;background:linear-gradient(145deg,#fff,#f7fbff);isolation:isolate}.kpi::before{content:"";position:absolute;inset:0 auto 0 0;width:5px;background:var(--blue2);opacity:.78}.kpi::after{content:"";position:absolute;right:-28px;top:-36px;width:92px;height:92px;border-radius:999px;background:rgba(0,82,165,.08);z-index:-1}.kpiHeader{display:flex;align-items:center;gap:8px}.kpiBadge{width:24px;height:24px;border-radius:999px;display:inline-flex;align-items:center;justify-content:center;background:rgba(255,255,255,.72);box-shadow:inset 0 0 0 1px rgba(16,32,51,.08);font-size:.8rem}.kpiLabel{font-size:.74rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:900}.kpiValueRow{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-top:8px}.kpiValue{font-size:clamp(1.25rem,2.2vw,2rem);font-weight:950;letter-spacing:-.045em}.kpiStatus{border-radius:999px;padding:3px 7px;background:rgba(102,112,133,.12);color:var(--muted);font-size:.66rem;font-weight:950;text-transform:uppercase;letter-spacing:.06em}.kpiNote{font-size:.78rem;color:var(--muted);margin-top:5px}.kpi-sale{background:linear-gradient(145deg,#fff,#f1f7ff)}.kpi-sale::before{background:var(--blue2)}.kpi-net{background:linear-gradient(145deg,#fff,#f5f0ff)}.kpi-net::before{background:#6f4bb6}.kpi-book{background:linear-gradient(145deg,#fff,#fff8e8)}.kpi-book::before{background:var(--amber)}.kpi-profit{background:linear-gradient(145deg,#fff,#eefbf4)}.kpi-profit::before{background:var(--green)}.kpi-completed{background:linear-gradient(145deg,#fff,#f4f7fb)}.kpi-completed::before{background:#475467}.kpi-primary{grid-column:span 2;padding:20px}.kpi-primary .kpiValue{font-size:clamp(1.85rem,4vw,3.2rem)}.valuePositive{color:var(--green)}.valueNegative{color:var(--bad)}.valueNeutral{color:var(--ink)}.valuePositive+.kpiStatus{background:rgba(16,124,65,.12);color:var(--green)}.valueNegative+.kpiStatus{background:rgba(180,35,24,.12);color:var(--bad)}.dashGrid{display:grid;grid-template-columns:1.2fr .8fr;gap:18px}.summaryTable{width:100%;border-collapse:collapse}.summaryTable td{padding:12px 0;border-bottom:1px solid var(--line)}.summaryTable td:last-child{text-align:right;font-weight:900}.methodBox{background:#f8fbff;border:1px solid var(--line);border-radius:16px;padding:14px;line-height:1.5;color:var(--muted);font-size:.9rem}.methodBox strong{color:var(--ink)}
-    .formGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.fieldFull{grid-column:1/-1}.fieldHalf{grid-column:span 2}label{display:block;font-size:.75rem;font-weight:900;color:#31445a;margin-bottom:6px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;color:var(--ink);background:#fff;outline:none}input:focus,select:focus,textarea:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(0,82,165,.12)}textarea{min-height:90px;resize:vertical}.calcPreview{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.previewTile{background:var(--soft);border:1px solid #cfe0f5;border-radius:15px;padding:13px}.previewTile div:first-child{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:900}.previewTile div:last-child{font-size:1.2rem;font-weight:950;margin-top:6px}.formActions{position:sticky;bottom:0;background:rgba(243,246,251,.92);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 0 0;margin-top:12px}
+    .formSections{display:grid;gap:16px}.formSection{border:1px solid var(--line);border-radius:16px;background:#fbfdff;padding:15px}.formSectionTitle{float:none;width:auto;margin:0 0 12px;padding:0 8px 0 0;font-size:.78rem;font-weight:950;text-transform:uppercase;letter-spacing:.08em;color:var(--blue)}.formSectionGrid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}.feeSection{background:linear-gradient(145deg,#fff8e8,#fff);border-color:rgba(154,103,0,.35);box-shadow:inset 5px 0 0 rgba(246,197,95,.95)}.fieldFull{grid-column:1/-1}.fieldHalf{grid-column:span 2}label{display:block;font-size:.75rem;font-weight:900;color:#31445a;margin-bottom:6px}input,select,textarea{width:100%;border:1px solid var(--line);border-radius:12px;padding:11px 12px;font:inherit;color:var(--ink);background:#fff;outline:none}input:focus,select:focus,textarea:focus{border-color:var(--blue2);box-shadow:0 0 0 3px rgba(0,82,165,.12)}textarea{min-height:90px;resize:vertical}.calcPreview{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin:16px 0}.previewTile{background:var(--soft);border:1px solid #cfe0f5;border-radius:15px;padding:13px}.previewTile div:first-child{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:900}.previewTile div:last-child{font-size:1.2rem;font-weight:950;margin-top:6px}.formActions{position:sticky;bottom:0;background:rgba(243,246,251,.92);backdrop-filter:blur(10px);border-top:1px solid var(--line);padding:12px 0 0;margin-top:12px}
     .toolbar{display:grid;grid-template-columns:1fr 170px 165px;gap:10px;margin-bottom:14px}.tableWrap{overflow:auto;border-radius:15px;border:1px solid var(--line);background:#fff}table{width:100%;border-collapse:collapse;min-width:1120px}th,td{padding:12px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}th{position:sticky;top:0;background:#f8fbff;color:#31445a;font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;z-index:1}.num{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}.player{font-weight:950}.muted{color:var(--muted)}.pill{display:inline-flex;border-radius:999px;padding:4px 8px;font-size:.73rem;font-weight:950;white-space:nowrap}.profit{background:rgba(16,124,65,.10);color:var(--green)}.loss{background:rgba(180,35,24,.10);color:var(--bad)}.pending{background:rgba(154,103,0,.12);color:var(--amber)}.neutral{background:#eef2f6;color:#475467}.rowActions{display:flex;gap:7px;justify-content:flex-end}.rowActions button{padding:7px 9px;border-radius:10px;font-size:.78rem}.empty{padding:24px;text-align:center;color:var(--muted)}
     .callout{border-left:5px solid var(--red);background:#fff7f7;border-radius:14px;padding:14px 15px;margin-bottom:18px;color:#344054;line-height:1.45}.callout strong{color:var(--ink)}
-    @media(max-width:980px){.hero{grid-template-columns:auto 1fr}.heroMeta{grid-column:1/-1;justify-self:start;width:min(100%,420px)}.dashGrid{grid-template-columns:1fr}.kpiGrid{grid-template-columns:repeat(2,1fr)}.formGrid{grid-template-columns:repeat(2,1fr)}.calcPreview{grid-template-columns:repeat(2,1fr)}.toolbar{grid-template-columns:1fr}.fieldHalf{grid-column:1/-1}}
-    @media(max-width:560px){.wrap{padding:0 12px}main{padding:16px 12px 42px}.clubBadge{width:64px;height:64px;border-radius:14px}.kpiGrid,.formGrid,.calcPreview{grid-template-columns:1fr}.card{padding:14px}.btnRow button,.fileBtn{width:100%}.sectionHead{display:block}.sectionHead .btnRow{margin-top:12px}}
+    @media(max-width:980px){.hero{grid-template-columns:auto 1fr}.heroMeta{grid-column:1/-1;justify-self:start;width:min(100%,420px)}.dashGrid{grid-template-columns:1fr}.kpiGrid{grid-template-columns:repeat(2,1fr)}.formSectionGrid{grid-template-columns:repeat(2,1fr)}.calcPreview{grid-template-columns:repeat(2,1fr)}.toolbar{grid-template-columns:1fr}.fieldHalf{grid-column:1/-1}}
+    @media(max-width:560px){.wrap{padding:0 12px}main{padding:16px 12px 42px}.clubBadge{width:64px;height:64px;border-radius:14px}.kpiGrid,.formSectionGrid,.calcPreview{grid-template-columns:1fr}.card{padding:14px}.btnRow button,.fileBtn{width:100%}.sectionHead{display:block}.sectionHead .btnRow{margin-top:12px}}
     @media print{header,.tabs,.tabPanel:not(.active),.toolbar,.rowActions,.btnRow,.formActions{display:none!important}body{background:#fff}main{padding:0}.card{box-shadow:none;border:1px solid #ccc}.kpiGrid{grid-template-columns:repeat(6,1fr)}table{min-width:0;font-size:10px}th,td{padding:6px}}
   </style>
 </head>
@@ -59,22 +59,47 @@
       <div class="callout"><strong>Use guaranteed fee for P/L.</strong> Add-ons should stay in the add-ons field until they are triggered. That keeps the dashboard honest.</div>
       <form id="transferForm">
         <input type="hidden" id="id">
-        <div class="formGrid">
-          <div><label for="player">Player</label><input id="player" required placeholder="Player name"></div>
-          <div><label for="position">Position</label><input id="position" placeholder="ST / CB / CM"></div>
-          <div><label for="status">Deal status</label><select id="status"><option>Rumoured</option><option>Negotiating</option><option>Agreed</option><option>Completed</option></select></div>
-          <div><label for="source">Source / confidence</label><input id="source" placeholder="Club, BBC, TWTD, Transfermarkt..."></div>
-          <div><label for="boughtFrom">Bought from</label><input id="boughtFrom" placeholder="Original selling club"></div>
-          <div><label for="soldTo">Sold to</label><input id="soldTo" placeholder="Buying club"></div>
-          <div><label for="purchaseDate">Purchase date</label><input id="purchaseDate" type="date"></div>
-          <div><label for="saleDate">Sale date</label><input id="saleDate" type="date"></div>
-          <div><label for="purchasePrice">Purchase price (£m)</label><input id="purchasePrice" type="number" min="0" step="0.01" placeholder="0.00"></div>
-          <div><label for="saleFee">Guaranteed sale fee (£m)</label><input id="saleFee" type="number" min="0" step="0.01" placeholder="0.00"></div>
-          <div><label for="addOns">Potential add-ons (£m)</label><input id="addOns" type="number" min="0" step="0.01" placeholder="0.00"></div>
-          <div><label for="costs">Sell-on / costs (£m)</label><input id="costs" type="number" min="0" step="0.01" placeholder="0.00"></div>
-          <div class="fieldHalf"><label for="contractStart">Contract start / amortisation start</label><input id="contractStart" type="date"></div>
-          <div class="fieldHalf"><label for="contractEnd">Current contract end</label><input id="contractEnd" type="date"></div>
-          <div class="fieldFull"><label for="notes">Notes</label><textarea id="notes" placeholder="Fee caveats, option years, sell-on clauses, source links, or why values are estimated."></textarea></div>
+        <div class="formSections">
+          <fieldset class="formSection">
+            <legend class="formSectionTitle">Player &amp; status</legend>
+            <div class="formSectionGrid">
+              <div><label for="player">Player</label><input id="player" required placeholder="Player name"></div>
+              <div><label for="position">Position</label><input id="position" placeholder="ST / CB / CM"></div>
+              <div><label for="status">Deal status</label><select id="status"><option>Rumoured</option><option>Negotiating</option><option>Agreed</option><option>Completed</option></select></div>
+            </div>
+          </fieldset>
+          <fieldset class="formSection">
+            <legend class="formSectionTitle">Clubs &amp; dates</legend>
+            <div class="formSectionGrid">
+              <div><label for="boughtFrom">Bought from</label><input id="boughtFrom" placeholder="Original selling club"></div>
+              <div><label for="soldTo">Sold to</label><input id="soldTo" placeholder="Buying club"></div>
+              <div><label for="purchaseDate">Purchase date</label><input id="purchaseDate" type="date"></div>
+              <div><label for="saleDate">Sale date</label><input id="saleDate" type="date"></div>
+            </div>
+          </fieldset>
+          <fieldset class="formSection feeSection">
+            <legend class="formSectionTitle">Fees</legend>
+            <div class="formSectionGrid">
+              <div><label for="purchasePrice">Purchase price (£m)</label><input id="purchasePrice" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div><label for="saleFee">Guaranteed sale fee (£m)</label><input id="saleFee" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div><label for="addOns">Potential add-ons (£m)</label><input id="addOns" type="number" min="0" step="0.01" placeholder="0.00"></div>
+              <div><label for="costs">Sell-on / costs (£m)</label><input id="costs" type="number" min="0" step="0.01" placeholder="0.00"></div>
+            </div>
+          </fieldset>
+          <fieldset class="formSection">
+            <legend class="formSectionTitle">Contract amortisation</legend>
+            <div class="formSectionGrid">
+              <div class="fieldHalf"><label for="contractStart">Contract start / amortisation start</label><input id="contractStart" type="date"></div>
+              <div class="fieldHalf"><label for="contractEnd">Current contract end</label><input id="contractEnd" type="date"></div>
+            </div>
+          </fieldset>
+          <fieldset class="formSection">
+            <legend class="formSectionTitle">Source notes</legend>
+            <div class="formSectionGrid">
+              <div class="fieldHalf"><label for="source">Source / confidence</label><input id="source" placeholder="Club, BBC, TWTD, Transfermarkt..."></div>
+              <div class="fieldFull"><label for="notes">Notes</label><textarea id="notes" placeholder="Fee caveats, option years, sell-on clauses, source links, or why values are estimated."></textarea></div>
+            </div>
+          </fieldset>
         </div>
         <div class="calcPreview" id="calcPreview"></div>
         <div class="formActions"><div class="btnRow"><button type="submit" id="saveBtn">Add transfer</button><button type="button" class="secondary" id="resetBtn">Reset form</button><button type="button" class="ghost" data-switch="tracker">Go to tracker</button></div></div>
