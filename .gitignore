@@ -1,0 +1,3 @@
+# Raw Telegram exports are local/generated inputs for import jobs.
+result.json
+data/result.json
