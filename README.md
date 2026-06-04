@@ -18,22 +18,28 @@ node scripts/runTelegramImport.js
 
 The raw export paths are ignored by git. Running the import regenerates `data/messages_enriched.json` for the app to consume.
 
-## Build the deploy artifact
+## Build the static app
 
-For CI or a local release, place the raw Telegram export at `data/result.json`, then run:
+The app has no frontend framework build step. For CI or a local release, run:
 
 ```sh
-node scripts/buildDeployArtifact.js
+node scripts/buildStatic.js
 ```
 
-The release script runs `node scripts/runTelegramImport.js`, creates a clean deploy output folder (`dist/` by default), copies the static dashboard files, and copies the generated dataset to `dist/data/messages_enriched.json`.
+The release script creates a clean deploy output folder (`dist/` by default), copies `index.html`, `TransferTracker.html`, and the browser runtime dataset to `dist/data/messages_enriched.json`. It never copies raw Telegram exports such as `result.json` or `data/result.json`.
+
+If a raw Telegram export is available at `data/result.json`, the script first runs `node scripts/runTelegramImport.js` so `data/messages_enriched.json` is fresh before the deploy folder is created. If there is no raw export, the script uses the existing generated runtime data file. To force the existing data file even when a raw export is present, pass `--skip-import`:
+
+```sh
+node scripts/buildStatic.js --skip-import
+```
 
 To use another output folder, pass it as the first argument or set `DEPLOY_DIR`:
 
 ```sh
-node scripts/buildDeployArtifact.js build
+node scripts/buildStatic.js build
 # or
-DEPLOY_DIR=build node scripts/buildDeployArtifact.js
+DEPLOY_DIR=build node scripts/buildStatic.js
 ```
 
 Deploy the contents of that output folder. Avoid mixing routine generated message-data changes into pull requests that are otherwise about application code.
