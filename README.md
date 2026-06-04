@@ -8,10 +8,10 @@ The deployable dashboard reads from `data/messages_enriched.json`. Keep that enr
 
 ## Telegram import input
 
-Raw Telegram export files are local/generated inputs and should not be committed. Supply `result.json` locally at the repository root, or as `data/result.json`, before running the import script:
+Raw Telegram export files are local/generated inputs and should not be committed. The import script expects a Telegram export to be supplied locally at `result.json` in the repository root, or at `data/result.json`, before it runs:
 
 ```sh
 node scripts/runTelegramImport.js
 ```
 
-In CI or deployment automation, download or otherwise provide the raw Telegram export (`result.json`) before invoking `scripts/runTelegramImport.js`; the script will regenerate `data/messages_enriched.json` for the app to consume.
+For CI or deployment automation, download, decrypt, or otherwise provide the raw Telegram export (`result.json` or `data/result.json`) before invoking `scripts/runTelegramImport.js`. The raw export paths are ignored by git, and the script will regenerate `data/messages_enriched.json` for the app to consume.
